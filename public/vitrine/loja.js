@@ -1,0 +1,3 @@
+'use strict';
+document.querySelectorAll('[data-category],[data-collection]').forEach(button=>button.addEventListener('click',()=>{document.getElementById('search').value='';document.querySelector('[data-filter="'+(button.dataset.category||button.dataset.collection)+'"]').click();document.getElementById('vitrine').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});}));
+document.getElementById('search').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();document.getElementById('vitrine').scrollIntoView({behavior:'smooth'});}});
