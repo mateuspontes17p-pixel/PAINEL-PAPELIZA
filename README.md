@@ -4,7 +4,7 @@ Painel autenticado e vitrine demonstrativa da Lápis de Cor. Publicação pelo G
 
 ## Catálogo online
 
-- Produtos e categorias são salvos no Supabase. Salvar um produto visível o publica; ocultar ou excluir o retira da consulta pública. Exclusão é reversível por Restaurar.
+- Produtos e categorias são salvos no Supabase. Salvar um produto visível o publica; ocultar ou excluir o retira da consulta pública. Exclusão é reversível: marque Mostrar excluídos e use Restaurar.
 - Fotos JPEG, PNG e WebP de até 1 MB são enviadas ao bucket `catalog-images`, em uma pasta exclusiva por loja. Fotos são públicas por URL; não enviar documentos ou imagens privadas. Substituir uma foto cria outro arquivo, sem apagar o antigo automaticamente.
 - Categorias em uso não podem ser excluídas. Renomear uma categoria atualiza os produtos vinculados na mesma operação do banco.
 - Alterações simultâneas no mesmo produto são detectadas por `updated_at`. Use Atualizar catálogo antes de refazer uma edição desatualizada.

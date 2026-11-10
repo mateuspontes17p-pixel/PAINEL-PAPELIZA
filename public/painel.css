@@ -2,3 +2,5 @@
 .login-screen{min-height:100vh;display:grid;place-items:center;padding:25px}.login-card{background:white;border:1px solid #e5dfeb;border-radius:8px;width:min(100%,430px);padding:32px}.login-card h1{font-size:26px;margin:25px 0 12px}.login-card>p{font-size:12px;color:#766b80}.login-card form{display:grid;gap:15px;margin:22px 0}.login-card small{display:block;font-size:10px;color:#8b8095;margin-top:20px}#auth-status{color:#69509c;min-height:22px}#logout{font-size:10px;padding:4px 10px;margin-top:8px}#authenticated-panel[hidden],#login-screen[hidden]{display:none!important}
 
 .local-backup{font-size:11px;padding:12px;background:#fff7df;border:1px solid #eadab1;border-radius:5px}.local-backup button{font-size:10px;padding:4px 8px}.toolbar{flex-wrap:wrap}
+
+.archived-toggle{align-self:center;white-space:nowrap}.toolbar .archived-toggle{width:auto}
