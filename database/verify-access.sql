@@ -11,8 +11,8 @@ do $$declare n integer; old_time timestamptz; begin
  assert (select count(*) from public.catalog_products where store_id='00000000-0000-4000-8000-000000000077')=0,'Other store visible to administrator';
  update public.catalog_products set name='Forbidden' where store_id='00000000-0000-4000-8000-000000000077';get diagnostics n=row_count;assert n=0,'Cross-store update allowed';
  begin insert into public.catalog_categories(store_id,name) values ('00000000-0000-4000-8000-000000000077','Forbidden');raise exception 'Cross-store insert allowed';exception when insufficient_privilege then null;end;
- insert into public.catalog_categories(store_id,name) select id,'__Teste__' from public.stores;
- insert into public.catalog_products(store_id,id,name,detail,category,price_cents,visible) select id,'__test__','Teste','Teste','__Teste__',123,false from public.stores;
+ insert into public.catalog_categories(store_id,name) select id,'__Teste__' from public.stores where slug='lapis-de-cor';
+ insert into public.catalog_products(store_id,id,name,detail,category,price_cents,visible) select id,'__test__','Teste','Teste','__Teste__',123,false from public.stores where slug='lapis-de-cor';
  assert (select count(*) from public.catalog_products where id='__test__')=1,'Owner cannot read hidden product';
  select updated_at into old_time from public.catalog_products where id='__test__';
  update public.catalog_products set name='Editado' where id='__test__' and updated_at=old_time;get diagnostics n=row_count;assert n=1,'Owner edit failed';

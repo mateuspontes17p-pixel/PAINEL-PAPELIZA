@@ -19,3 +19,13 @@ Painel autenticado e vitrine demonstrativa da Lápis de Cor. Publicação pelo G
 `database/verify-access.sql` testa isolamento entre lojas, acesso público, alterações autorizadas, integridade das categorias, preço e conflito de edições. Todos os registros de teste são revertidos na mesma transação.
 
 As únicas credenciais presentes no cliente são a URL e a chave publicável. Senhas de e-mail, chaves secretas e credenciais administrativas não devem entrar no repositório. SMTP permanece configurado apenas no servidor Supabase.
+
+## London e seleção de lojas
+
+O painel aceita `?loja=london-papelaria` e `?loja=lapis-de-cor`. A conta precisa estar autorizada à loja no servidor; mudar o endereço não concede acesso. Contas com mais de uma loja usam o seletor Loja em administração. Trocar de loja recarrega a página; a seleção fica bloqueada durante o salvamento.
+
+London tem catálogo e pasta de fotos próprios. A vitrine conectada está em `/london/`, preservando os arquivos visuais da demonstração original. O projeto Netlify independente `londonpapelaria.netlify.app` não foi substituído: continua sendo a apresentação anterior, sem sincronização com este painel.
+
+Os seis produtos de London foram importados de seu `catalogo.js` anterior, como exemplos, sem copiar produtos cadastrados na Lápis de Cor. Campanha, kit escolar e contador continuam conteúdo da demonstração original e não são administrados pelo cadastro de produtos.
+
+`database/london.sql` registra a importação idempotente da loja e exemplos. A autorização administrativa é cadastrada separadamente no servidor, sem publicar endereços de administradores no código. `database/verify-london-isolation.sql` testa o isolamento da London com uma conta temporária, revertida na mesma transação.

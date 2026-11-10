@@ -4,3 +4,5 @@
 .local-backup{font-size:11px;padding:12px;background:#fff7df;border:1px solid #eadab1;border-radius:5px}.local-backup button{font-size:10px;padding:4px 8px}.toolbar{flex-wrap:wrap}
 
 .archived-toggle{align-self:center;white-space:nowrap}.toolbar .archived-toggle{width:auto}
+
+.store-context{display:flex;align-items:center;gap:18px;margin-top:20px;padding:14px 16px;background:#fff;border:1px solid #e5dfeb;border-radius:5px}.store-context label{min-width:230px;max-width:100%}.store-context span{font-size:11px;color:#82768b}.store-context select{max-width:100%}@media(max-width:650px){.store-context{align-items:stretch;flex-direction:column;gap:8px}.store-context label{min-width:0;width:100%}}
