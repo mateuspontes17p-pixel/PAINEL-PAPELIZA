@@ -1,6 +1,7 @@
 import {client,imageURL} from './supabase-client.js';
+import {demoProductImage} from './demo-product-images.js';
 const store=()=>window.PAPELIZA_STORE.id;
-export function productFromRow(p){return {id:p.id,name:p.name,detail:p.detail,category:p.category,priceCents:p.price_cents,image:p.image_path?imageURL(p.image_path):p.image_index,imagePath:p.image_path,imageIndex:p.image_index,tag:p.tag,visible:p.visible,available:p.available,archived:p.archived,updatedAt:p.updated_at}}
+export function productFromRow(p){return {id:p.id,name:p.name,detail:p.detail,category:p.category,priceCents:p.price_cents,image:p.image_path?imageURL(p.image_path):demoProductImage(p,p.store_id),imagePath:p.image_path,imageIndex:p.image_index,tag:p.tag,visible:p.visible,available:p.available,archived:p.archived,updatedAt:p.updated_at}}
 function check(result){if(result.error)throw result.error;return result.data}
 export async function loadCatalog(){
  const [cats,products]=await Promise.all([
