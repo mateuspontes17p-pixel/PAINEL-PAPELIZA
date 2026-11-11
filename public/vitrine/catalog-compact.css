@@ -1,0 +1,16 @@
+/* Grade compacta baseada nas proporções da referência, com a identidade da loja. */
+.catalog{padding-inline:max(24px,calc((100vw - 1120px)/2))}
+.catalog .product-grid{grid-template-columns:repeat(6,minmax(0,1fr));gap:22px 14px}
+.catalog .product-card{padding:0 10px 12px;border:1px solid #e9e3ed;border-radius:5px;background:#fff;box-shadow:0 1px 5px #312b3e0d;overflow:hidden}
+.catalog .product-image{width:calc(100% + 20px);margin-inline:-10px;aspect-ratio:1;border-radius:0}
+.catalog .product-card h3{font-size:12px;font-weight:500;line-height:18px;min-height:36px;margin:10px 0 5px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.catalog .product-card .detail{font-size:10px;line-height:16px;min-height:32px;margin-top:0;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.catalog .product-bottom{flex-direction:column;align-items:stretch;gap:10px;min-height:0;margin-top:auto;padding-top:12px}
+.catalog .price{font-size:18px;line-height:1.3;font-weight:700}
+.catalog .add-button{width:100%;min-width:0;min-height:36px;padding:8px 10px;justify-content:center;gap:9px;font-size:11px}
+.catalog .add-button span{font-size:16px;line-height:1}
+.catalog .product-tag{top:8px;left:8px;padding:3px 7px;font-size:8px}
+@media(max-width:1179px){.catalog .product-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media(max-width:979px){.catalog .product-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:759px){.catalog .product-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px 12px}}
+@media(max-width:559px){.catalog{padding-inline:18px}.catalog .product-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.catalog .product-card{padding-inline:9px}.catalog .product-image{width:calc(100% + 18px);margin-inline:-9px}.catalog .add-button{min-height:44px}.catalog .price{font-size:17px}}
