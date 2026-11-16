@@ -26,6 +26,9 @@ writeFileSync(client, js);
 const index = join(out, 'index.html');
 writeFileSync(index, readFileSync(index, 'utf8').replace(/<body([^>]*)>/, '<body$1><div style="position:sticky;top:0;z-index:99999;background:#b45309;color:#fff;text-align:center;font:600 12px Arial;padding:6px">AMBIENTE DE TESTES · projeto Supabase PAINEL 2 · dados fictícios · não é a produção</div>'));
 
+// Publicação estática sem build (a pasta de saída é a raiz do site), com os mesmos cabeçalhos de segurança do repositório.
+writeFileSync(join(out, 'netlify.toml'), `[build]\n  publish = "."\n\n[[headers]]\n  for = "/*"\n  [headers.values]\n    X-Content-Type-Options = "nosniff"\n    Referrer-Policy = "strict-origin-when-cross-origin"\n    X-Robots-Tag = "noindex, nofollow"\n`);
+
 // Auditoria: nenhum arquivo da cópia pode citar o projeto de produção.
 const leaks = [];
 (function walk(dir) { for (const name of readdirSync(dir)) { const p = join(dir, name); statSync(p).isDirectory() ? walk(p) : readFileSync(p).toString('latin1').includes(PROD_REF) && leaks.push(p); } })(out);
