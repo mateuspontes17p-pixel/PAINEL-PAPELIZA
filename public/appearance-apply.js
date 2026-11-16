@@ -158,7 +158,8 @@ export function applyAppearance(doc, templateId, rawConfig, ctx = {}) {
     all('[data-ap="' + kind + '"]').forEach(img => {
       setAttr(img, 'src', url);
       if (img.hasAttribute('srcset')) setAttr(img, 'srcset', url);
-      if (texts.storeName) setAttr(img, 'alt', kind === 'logo' ? 'Logo ' + texts.storeName : 'Banner ' + texts.storeName);
+      const altName = texts.storeName || (config.options?.storeMode ? ctx.storeName : '');
+      if (altName) setAttr(img, 'alt', kind === 'logo' ? 'Logo ' + altName : 'Banner ' + altName);
     });
   }
   if (config.options?.storeMode) {
@@ -174,6 +175,9 @@ export function applyAppearance(doc, templateId, rawConfig, ctx = {}) {
       setVitrine('name', name);
       setProp(doc, 'title', name);
     }
+    // Rótulos de acessibilidade com o nome da loja (os do modelo citam a loja de origem).
+    const labels = { home: name + ', início', back: name + ', voltar ao início', instagram: 'Instagram de ' + name + ', abre em nova aba' };
+    if (name) all('[data-ap-label]').forEach(el => { const text = labels[el.dataset.apLabel]; if (text) setAttr(el, 'aria-label', text); });
     // Fallbacks: sem logotipo, mostra o nome da loja em texto; sem banner, um fundo com as cores da loja.
     // Assim o logotipo e o banner do modelo (que trazem a marca da loja de origem) nunca aparecem em outra loja.
     if (!resolve('logoPath')) {

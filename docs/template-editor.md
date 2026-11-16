@@ -54,6 +54,6 @@ Tanto o operador PAPELIZA AI quanto o lojista autorizado poderão editar a ident
 
 **Pendências conhecidas (próximas etapas, não incluídas na V1)**
 - **Modo loja** (`options.storeMode`): oculta avisos, prazo, convite de ativação e dados da loja de origem (marcados com `data-demo` nas vitrines). Textos de origem sem valor próprio (chamada, endereço, horários, "sobre", rodapé) ficam ocultos; Instagram, mapa e WhatsApp da origem nunca aparecem. Sem logotipo, mostra o nome da loja; sem banner, usa um fundo claro com as cores da loja. Os modelos são `generic = true`: outra loja publica um modelo só em modo loja **e com WhatsApp próprio** (regra repetida no banco, em `publish_appearance`). A loja de origem publica como antes.
-- **Ainda fixos no HTML** (não editáveis): rótulos das seções, textos de "como pedir", faixa de presentes, `aria-label`s e textos de acessibilidade que citam a loja de origem. Conferir antes de usar em outra loja real.
+- **Ainda fixos no HTML** (não editáveis): rótulos das seções, textos de "como pedir", faixa de presentes. Em modo loja, `aria-label`s e `alt` visíveis passam a usar o nome da loja (`data-ap-label`).
 - Melhorias de design e responsividade dos modelos além das cores (auditoria visual antes/depois).
 - Limpeza de imagens antigas do Storage (substituir uma imagem não apaga a anterior).
