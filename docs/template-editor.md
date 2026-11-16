@@ -36,7 +36,7 @@ Tanto o operador PAPELIZA AI quanto o lojista autorizado poderão editar a ident
 ## Estado da implementação (V1 · branch `feature/visual-editor`)
 
 **Implementado e testado** (testes automatizados; nada foi aplicado no Supabase real nem publicado no Netlify):
-- Aba **Aparência** no painel (`public/aparencia.js`, `index.html`, `painel.css`): modelo, cores, nome, logotipo, banner, textos, WhatsApp e Instagram; prévia ao vivo em iframe (computador/celular); salvar rascunho; publicar em duas etapas; histórico e restauração para o rascunho.
+- Aba **Aparência** no painel (`public/aparencia.js`, `index.html`, `painel.css`): modelo, cores, nome, logotipo, banner, textos, endereço, horários, sobre, rodapé, link do mapa, WhatsApp e Instagram; prévia ao vivo em iframe (computador/celular); salvar rascunho; publicar em duas etapas; histórico e restauração para o rascunho.
 - Contrato de dados estrito e validação (`public/template-registry.js`), espelhado no banco.
 - Aplicação segura na vitrine (`public/appearance-apply.js` + `catalog-public.js`): só `textContent`, atributos e variáveis CSS. Sem tabela, sem aparência publicada ou com configuração inválida, a vitrine mantém o visual original.
 - Cores dos dois modelos controladas por variáveis CSS (padrão idêntico ao anterior).
@@ -53,7 +53,7 @@ Tanto o operador PAPELIZA AI quanto o lojista autorizado poderão editar a ident
 3. Revisar o PR e gerar Deploy Preview antes de qualquer merge; sem a migração, o painel mostra "recurso ainda não ativado" e a prévia funciona.
 
 **Pendências conhecidas (próximas etapas, não incluídas na V1)**
-- Endereço, horários, mapa, faixa de campanha, textos "sobre" e prazos de demonstração continuam fixos no HTML. Por isso um modelo só pode ser publicado pela loja de origem (`storefront_templates.generic = false`). Tornar o conteúdo editável/genérico libera o uso do modelo por outras lojas.
+- **Já editáveis (texto "sobre", endereço, horários [Lápis de Cor], frase do rodapé e link do Google Maps)**, nos dois modelos. Continuam fixos no HTML: faixa de campanha, avisos e prazo de demonstração, textos de "como pedir", faixa de presentes e rótulos das seções. Por isso um modelo ainda só pode ser publicado pela loja de origem (`storefront_templates.generic = false`). Só marcar como genérico depois de tornar esses trechos editáveis ou ocultáveis.
 - Fallback visual quando uma loja usa o modelo de outra sem logotipo/banner próprios.
 - Melhorias de design e responsividade dos modelos além das cores (auditoria visual antes/depois).
 - Limpeza de imagens antigas do Storage (substituir uma imagem não apaga a anterior).

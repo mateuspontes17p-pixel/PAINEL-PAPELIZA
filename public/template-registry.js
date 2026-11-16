@@ -21,11 +21,14 @@ export const TEMPLATES = Object.freeze([
         heroEyebrow: 'LONDON PAPELARIA',
         heroTitle: 'Novas ideias.',
         heroHighlight: 'Novas descobertas.',
-        heroSubtitle: 'Kit escolar demonstrativo'
+        heroSubtitle: 'Kit escolar demonstrativo',
+        aboutText: 'Esta proposta apresenta uma possibilidade de presença digital para a London Papelaria & Presentes Criativos, reunindo uma vitrine de produtos e uma forma simples de montar pedidos.',
+        address: 'Av. Inglaterra, 639 · Loja 02\nIgapó · Londrina, PR',
+        footerTagline: 'Papelaria & Presentes Criativos · Londrina, PR'
       },
-      contact: { whatsapp: '5543996654884', instagram: 'https://www.instagram.com/londonpapelariaepresentes/' }
+      contact: { whatsapp: '5543996654884', instagram: 'https://www.instagram.com/londonpapelariaepresentes/', mapUrl: 'https://www.google.com/maps/search/?api=1&query=Avenida%20Inglaterra%20639%20Londrina%20PR' }
     }),
-    fields: Object.freeze(['storeName', 'heroEyebrow', 'heroTitle', 'heroHighlight', 'heroSubtitle'])
+    fields: Object.freeze(['storeName', 'heroEyebrow', 'heroTitle', 'heroHighlight', 'heroSubtitle', 'aboutText', 'address', 'footerTagline'])
   }),
   Object.freeze({
     id: 'lapis-de-cor',
@@ -40,11 +43,15 @@ export const TEMPLATES = Object.freeze([
         storeName: 'Lápis de Cor',
         heroEyebrow: 'LÁPIS DE COR PAPELARIA',
         heroTitle: 'Material escolar\ne papelaria.',
-        heroSubtitle: 'Cadernos, canetas e acessórios para os estudos e o trabalho. Veja os produtos e monte seu pedido pelo WhatsApp.'
+        heroSubtitle: 'Cadernos, canetas e acessórios para os estudos e o trabalho. Veja os produtos e monte seu pedido pelo WhatsApp.',
+        aboutText: 'Confira o endereço e os horários de atendimento.',
+        address: 'Av. Higienópolis, 1387 — Boa Vista\nLondrina/PR',
+        hours: 'Segunda a sexta · 9h às 18h\nSábado · 9h às 13h',
+        footerTagline: 'Material escolar e de escritório · Londrina/PR'
       },
-      contact: { whatsapp: '554399953336', instagram: 'https://www.instagram.com/lapisdecorpapelaria/' }
+      contact: { whatsapp: '554399953336', instagram: 'https://www.instagram.com/lapisdecorpapelaria/', mapUrl: 'https://maps.app.goo.gl/SE1D8WGk5qQjX8FF6' }
     }),
-    fields: Object.freeze(['storeName', 'heroEyebrow', 'heroTitle', 'heroSubtitle'])
+    fields: Object.freeze(['storeName', 'heroEyebrow', 'heroTitle', 'heroSubtitle', 'aboutText', 'address', 'hours', 'footerTagline'])
   })
 ]);
 
@@ -60,12 +67,15 @@ export function canPublishTemplate(storeSlug, templateId) {
   return !!template && template.nativeStore === storeSlug;
 }
 
-export const TEXT_LIMITS = Object.freeze({ storeName: 80, heroEyebrow: 40, heroTitle: 80, heroHighlight: 80, heroSubtitle: 200 });
+export const TEXT_LIMITS = Object.freeze({ storeName: 80, heroEyebrow: 40, heroTitle: 80, heroHighlight: 80, heroSubtitle: 200, aboutText: 300, address: 120, hours: 120, footerTagline: 80 });
 export const TEXT_LABELS = Object.freeze({
   storeName: 'Nome da loja', heroEyebrow: 'Chamada acima do título', heroTitle: 'Título principal',
-  heroHighlight: 'Segunda linha em destaque', heroSubtitle: 'Subtítulo'
+  heroHighlight: 'Segunda linha em destaque', heroSubtitle: 'Subtítulo',
+  aboutText: 'Texto "sobre a loja"', address: 'Endereço (até duas linhas)', hours: 'Horários (até duas linhas)', footerTagline: 'Frase do rodapé'
 });
 const HEX = /^#[0-9a-f]{6}$/i;
+const MULTILINE = Object.freeze(['heroTitle', 'address', 'hours']);
+const MAP_URL = /^https:\/\/(www\.google\.com\/maps[\w\-./?=&%+,@:!*]{0,250}|maps\.app\.goo\.gl\/[A-Za-z0-9]{4,40}|goo\.gl\/maps\/[A-Za-z0-9]{4,40}|maps\.google\.com\/[\w\-./?=&%+,@:!*]{0,250})$/;
 const INSTAGRAM = /^https:\/\/(www\.)?instagram\.com\/[A-Za-z0-9._]{1,30}\/?$/;
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const IMAGE_KEYS = Object.freeze({ logoPath: 'logo', bannerPath: 'banner' });
@@ -135,8 +145,8 @@ export function validateAppearance(value, { storeId } = {}) {
       if (typeof text !== 'string') fail('texts.' + key, 'Texto inválido.');
       text = text.replace(/\r\n?/g, '\n').split('\n').map(line => line.trim()).join('\n').trim();
       if (!text) continue;
-      if (key !== 'heroTitle' && text.includes('\n')) fail('texts.' + key, 'Use uma única linha neste campo.');
-      if (key === 'heroTitle' && text.split('\n').length > 2) fail('texts.' + key, 'O título aceita no máximo duas linhas.');
+      if (!MULTILINE.includes(key) && text.includes('\n')) fail('texts.' + key, 'Use uma única linha neste campo.');
+      if (MULTILINE.includes(key) && text.split('\n').length > 2) fail('texts.' + key, TEXT_LABELS[key] + ': no máximo duas linhas.');
       if (text.length > max) fail('texts.' + key, TEXT_LABELS[key] + ': no máximo ' + max + ' caracteres.');
       if (/[<>]/.test(text) || /[\u0000-\u0009\u000b-\u001f\u007f]/.test(text)) fail('texts.' + key, TEXT_LABELS[key] + ': remova < > e caracteres de controle.');
       texts[key] = text;
@@ -146,7 +156,7 @@ export function validateAppearance(value, { storeId } = {}) {
 
   if (value.contact !== undefined) {
     if (!isObject(value.contact)) fail('contact', 'Contato inválido.');
-    exactKeys(value.contact, ['whatsapp', 'instagram'], 'contact');
+    exactKeys(value.contact, ['whatsapp', 'instagram', 'mapUrl'], 'contact');
     const contact = {};
     if (value.contact.whatsapp !== undefined && value.contact.whatsapp !== null && value.contact.whatsapp !== '') {
       if (typeof value.contact.whatsapp !== 'string') fail('contact.whatsapp', 'WhatsApp inválido.');
@@ -158,6 +168,11 @@ export function validateAppearance(value, { storeId } = {}) {
       const url = typeof value.contact.instagram === 'string' ? value.contact.instagram.trim() : '';
       if (!INSTAGRAM.test(url)) fail('contact.instagram', 'Use o endereço do perfil, por exemplo https://www.instagram.com/sualoja/.');
       contact.instagram = url;
+    }
+    if (value.contact.mapUrl !== undefined && value.contact.mapUrl !== null && value.contact.mapUrl !== '') {
+      const url = typeof value.contact.mapUrl === 'string' ? value.contact.mapUrl.trim() : '';
+      if (!MAP_URL.test(url)) fail('contact.mapUrl', 'Use um link do Google Maps (https://maps.app.goo.gl/... ou https://www.google.com/maps/...).');
+      contact.mapUrl = url;
     }
     if (Object.keys(contact).length) out.contact = contact;
   }

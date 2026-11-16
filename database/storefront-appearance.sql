@@ -34,12 +34,12 @@ begin
   if cfg ? 'texts' then
     if jsonb_typeof(cfg->'texts') <> 'object' then return false; end if;
     for k, v in select key, value from jsonb_each(cfg->'texts') loop
-      lim := case k when 'storeName' then 80 when 'heroEyebrow' then 40 when 'heroTitle' then 80 when 'heroHighlight' then 80 when 'heroSubtitle' then 200 else null end;
+      lim := case k when 'storeName' then 80 when 'heroEyebrow' then 40 when 'heroTitle' then 80 when 'heroHighlight' then 80 when 'heroSubtitle' then 200 when 'aboutText' then 300 when 'address' then 120 when 'hours' then 120 when 'footerTagline' then 80 else null end;
       if lim is null or jsonb_typeof(v) <> 'string' then return false; end if;
       t := v #>> '{}';
       if length(t) = 0 or length(t) > lim or t ~ '[<>]' or t ~ '[\x01-\x09\x0b-\x1f\x7f]' then return false; end if;
-      if k <> 'heroTitle' and position(E'\n' in t) > 0 then return false; end if;
-      if k = 'heroTitle' and length(t) - length(replace(t, E'\n', '')) > 1 then return false; end if;
+      if k not in ('heroTitle','address','hours') and position(E'\n' in t) > 0 then return false; end if;
+      if k in ('heroTitle','address','hours') and length(t) - length(replace(t, E'\n', '')) > 1 then return false; end if;
     end loop;
   end if;
   if cfg ? 'contact' then
@@ -51,6 +51,8 @@ begin
         if t !~ '^[0-9]{10,15}$' then return false; end if;
       elsif k = 'instagram' then
         if t !~ '^https://(www\.)?instagram\.com/[A-Za-z0-9._]{1,30}/?$' then return false; end if;
+      elsif k = 'mapUrl' then
+        if t !~ '^https://(www\.google\.com/maps[A-Za-z0-9_./?=&%+,@:!*-]{0,250}|maps\.app\.goo\.gl/[A-Za-z0-9]{4,40}|goo\.gl/maps/[A-Za-z0-9]{4,40}|maps\.google\.com/[A-Za-z0-9_./?=&%+,@:!*-]{0,250})$' then return false; end if;
       else return false; end if;
     end loop;
   end if;

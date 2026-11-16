@@ -33,6 +33,9 @@ begin
   begin update public.storefront_appearance set draft = '{"texts":{"heroTitle":"a\nb\nc"}}' where store_id = lapis; raise exception 'Três linhas aceitas'; exception when check_violation then null; end;
   begin update public.storefront_appearance set draft = jsonb_build_object('texts', jsonb_build_object('heroSubtitle', repeat('x', 201))) where store_id = lapis; raise exception 'Texto longo aceito'; exception when check_violation then null; end;
   begin update public.storefront_appearance set draft = '{"contact":{"whatsapp":"abc"}}' where store_id = lapis; raise exception 'WhatsApp inválido aceito'; exception when check_violation then null; end;
+  begin update public.storefront_appearance set draft = '{"contact":{"mapUrl":"https://www.google.com.evil.example/maps"}}' where store_id = lapis; raise exception 'Mapa fora do domínio aceito'; exception when check_violation then null; end;
+  begin update public.storefront_appearance set draft = '{"texts":{"address":"a\nb\nc"}}' where store_id = lapis; raise exception 'Endereço com 3 linhas aceito'; exception when check_violation then null; end;
+  begin update public.storefront_appearance set draft = '{"texts":{"aboutText":"a\nb"}}' where store_id = lapis; raise exception 'Texto sobre com quebra aceito'; exception when check_violation then null; end;
   begin update public.storefront_appearance set draft = '{"contact":{"instagram":"https://evil.example/x"}}' where store_id = lapis; raise exception 'Instagram fora do domínio aceito'; exception when check_violation then null; end;
   begin update public.storefront_appearance set draft = jsonb_build_object('images', jsonb_build_object('logoPath', london::text || '/branding/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.png')) where store_id = lapis;
     raise exception 'Imagem de outra loja aceita'; exception when check_violation then null; end;

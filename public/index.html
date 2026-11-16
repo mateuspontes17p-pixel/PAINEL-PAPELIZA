@@ -20,9 +20,15 @@
 <fieldset class="box"><legend>Banner e textos</legend>
 <label>Chamada acima do título<input id="ap-heroEyebrow" maxlength="40"></label>
 <label>Título principal <small>(até 2 linhas)</small><textarea id="ap-heroTitle" rows="2" maxlength="81"></textarea></label>
-<label id="ap-highlight-row">Segunda linha em destaque<input id="ap-heroHighlight" maxlength="80"></label>
+<label data-ap-field="heroHighlight">Segunda linha em destaque<input id="ap-heroHighlight" maxlength="80"></label>
 <label>Subtítulo<textarea id="ap-heroSubtitle" rows="3" maxlength="200"></textarea></label>
 <label>Imagem do banner<input type="file" id="ap-banner" accept="image/jpeg,image/png,image/webp"></label><p class="ap-note">Use imagem larga (proporção próxima de 3:1). Até 1 MB.</p><button type="button" id="ap-clear-banner" class="ap-link" hidden>Usar o banner do modelo</button></fieldset>
+<fieldset class="box"><legend>Sobre a loja e localização</legend>
+<label data-ap-field="aboutText">Texto sobre a loja<textarea id="ap-aboutText" rows="3" maxlength="300"></textarea></label>
+<label data-ap-field="address">Endereço <small>(até 2 linhas)</small><textarea id="ap-address" rows="2" maxlength="121"></textarea></label>
+<label data-ap-field="hours">Horários de atendimento <small>(até 2 linhas)</small><textarea id="ap-hours" rows="2" maxlength="121"></textarea></label>
+<label data-ap-field="footerTagline">Frase do rodapé<input id="ap-footerTagline" maxlength="80"></label>
+<label>Link do mapa (Google Maps)<input id="ap-mapUrl" inputmode="url" placeholder="https://maps.app.goo.gl/..."></label></fieldset>
 <fieldset class="box"><legend>Contato</legend>
 <label>WhatsApp para pedidos<input id="ap-whatsapp" inputmode="tel" placeholder="(43) 99999-9999"></label>
 <label>Instagram<input id="ap-instagram" inputmode="url" placeholder="https://www.instagram.com/sualoja/"></label></fieldset>

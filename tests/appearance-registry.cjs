@@ -86,5 +86,28 @@ const fs = require('node:fs'), assert = require('node:assert/strict');
   }
   assert.equal(count(html.london, 'data-ap="logo"'), 3); assert.equal(count(html['lapis-de-cor'], 'data-ap-href="whatsapp"'), 3);
   assert.equal(count(html.london, 'data-ap-whatsapp-display'), 2); assert.equal(count(html['lapis-de-cor'], 'data-ap-textnode="storeName"'), 2);
+  // --- textos institucionais: ganchos, padrões iguais ao HTML e validação
+  const fieldHook = { aboutText: 'data-ap="aboutText"', address: 'data-ap-lines="address"', hours: 'data-ap-lines="hours"', footerTagline: 'data-ap="footerTagline"' };
+  for (const t of R.TEMPLATES) {
+    for (const key of ['aboutText', 'address', 'hours', 'footerTagline']) {
+      assert.equal(t.fields.includes(key), count(html[t.id], fieldHook[key]) === 1, t.id + ': campo ' + key + ' e gancho HTML divergem');
+      if (t.fields.includes(key)) {
+        const m = html[t.id].match(new RegExp(fieldHook[key].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[^>]*>([^]*?)</(p|address)>'));
+        const text = m[1].replace(/<br>/g, '\n').replace(/&amp;/g, '&');
+        assert.equal(text, t.defaults.texts[key], t.id + ': padrão de ' + key + ' difere do HTML');
+      }
+    }
+    assert.equal(count(html[t.id], 'data-ap-href="map"'), 1, t.id + ' sem link do mapa');
+    assert.ok(R.validateAppearance({ contact: { mapUrl: t.defaults.contact.mapUrl } }).contact.mapUrl, t.id + ': mapa padrão deve ser válido');
+  }
+  const val = v => R.validateAppearance(v, {});
+  assert.deepEqual(val({ texts: { address: 'Rua A, 10\nCentro' } }).texts.address, 'Rua A, 10\nCentro');
+  assert.throws(() => val({ texts: { address: 'a\nb\nc' } }), /duas linhas/);
+  assert.throws(() => val({ texts: { aboutText: 'x'.repeat(301) } }), /300/);
+  assert.throws(() => val({ texts: { aboutText: 'a\nb' } }), /única linha/);
+  assert.throws(() => val({ texts: { footerTagline: '<b>x</b>' } }));
+  for (const bad of ['http://maps.app.goo.gl/abcd', 'https://evil.example/maps', 'javascript:alert(1)', 'https://www.google.com.evil.example/maps', 'https://maps.app.goo.gl.evil.example/abcd'])
+    assert.throws(() => val({ contact: { mapUrl: bad } }), /Google Maps/, bad);
+  assert.equal(val({ contact: { mapUrl: 'https://maps.app.goo.gl/AbC123xy' } }).contact.mapUrl, 'https://maps.app.goo.gl/AbC123xy');
   console.log('PASS: contrato estrito (cores, textos, contato, imagens por loja), WhatsApp, gate de modelo, cores derivadas, padrões = vitrine em runtime, ganchos HTML.');
 })().catch(e => { console.error(e); process.exitCode = 1; });

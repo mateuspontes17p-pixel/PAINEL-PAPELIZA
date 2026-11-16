@@ -75,8 +75,20 @@ export function applyAppearance(doc, templateId, rawConfig, ctx = {}) {
     all('[data-ap-textnode="storeName"]').forEach(el => setFirstTextNode(el, texts.storeName));
     setVitrine('name', texts.storeName);
   }
-  for (const key of ['heroEyebrow', 'heroSubtitle']) {
+  for (const key of ['heroEyebrow', 'heroSubtitle', 'aboutText', 'footerTagline']) {
     if (texts[key]) all('[data-ap="' + key + '"]').forEach(el => setProp(el, 'textContent', texts[key]));
+  }
+  // Endereço e horários: até duas linhas, separadas por <br> criado aqui (nunca HTML vindo da configuração).
+  for (const key of ['address', 'hours']) {
+    if (!texts[key]) continue;
+    all('[data-ap-lines="' + key + '"]').forEach(el => {
+      const nodes = [];
+      texts[key].split('\n').forEach((line, index) => {
+        if (index) nodes.push(doc.createElement('br'));
+        nodes.push(doc.createTextNode(line));
+      });
+      replaceChildren(el, nodes);
+    });
   }
 
   // Título: London usa "linha 1 + destaque"; Lápis de Cor usa até duas linhas.
@@ -114,6 +126,8 @@ export function applyAppearance(doc, templateId, rawConfig, ctx = {}) {
     all('[data-ap-href="instagram"]').forEach(el => setAttr(el, 'href', contact.instagram));
     setVitrine('instagram', contact.instagram);
   }
+
+  if (contact.mapUrl) all('[data-ap-href="map"]').forEach(el => setAttr(el, 'href', contact.mapUrl));
 
   const resolve = key => {
     const local = ctx.localImages?.[key];

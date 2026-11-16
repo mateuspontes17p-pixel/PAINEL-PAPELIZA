@@ -6,7 +6,7 @@ import { loadAppearance, loadHistory, saveDraft, publish, restore, uploadBrandIm
 
 const $ = id => document.getElementById(id);
 const el = (tag, text, cls) => { const n = document.createElement(tag); if (text !== undefined) n.textContent = text; if (cls) n.className = cls; return n; };
-const TEXT_FIELDS = ['storeName', 'heroEyebrow', 'heroTitle', 'heroHighlight', 'heroSubtitle'];
+const TEXT_FIELDS = ['storeName', 'heroEyebrow', 'heroTitle', 'heroHighlight', 'heroSubtitle', 'aboutText', 'address', 'hours', 'footerTagline'];
 const IMAGE_KEYS = ['logoPath', 'bannerPath'];
 const IMAGE_INPUT = { logoPath: 'ap-logo', bannerPath: 'ap-banner' };
 const IMAGE_CLEAR = { logoPath: 'ap-clear-logo', bannerPath: 'ap-clear-banner' };
@@ -37,7 +37,7 @@ function readForm() {
   if (Object.keys(colors).length) raw.colors = colors;
   const texts = {};
   for (const key of TEXT_FIELDS) {
-    if (key === 'heroHighlight' && !template()?.fields.includes('heroHighlight')) continue;
+    if (!template()?.fields.includes(key)) continue;
     const v = $('ap-' + key).value;
     if (v.trim()) texts[key] = v;
   }
@@ -47,6 +47,8 @@ function readForm() {
   if (whatsapp) contact.whatsapp = normalizeWhatsApp(whatsapp);
   const instagram = $('ap-instagram').value.trim();
   if (instagram) contact.instagram = instagram;
+  const mapUrl = $('ap-mapUrl').value.trim();
+  if (mapUrl) contact.mapUrl = mapUrl;
   if (Object.keys(contact).length) raw.contact = contact;
   const images = {};
   for (const key of IMAGE_KEYS) if (state.images[key]) images[key] = state.images[key];
@@ -55,7 +57,7 @@ function readForm() {
 }
 
 function fieldId(field) {
-  const map = { 'colors.primary': 'ap-primary', 'colors.accent': 'ap-accent', 'contact.whatsapp': 'ap-whatsapp', 'contact.instagram': 'ap-instagram', 'images.logoPath': 'ap-logo', 'images.bannerPath': 'ap-banner' };
+  const map = { 'colors.primary': 'ap-primary', 'colors.accent': 'ap-accent', 'contact.whatsapp': 'ap-whatsapp', 'contact.instagram': 'ap-instagram', 'contact.mapUrl': 'ap-mapUrl', 'images.logoPath': 'ap-logo', 'images.bannerPath': 'ap-banner' };
   if (map[field]) return map[field];
   return field?.startsWith('texts.') ? 'ap-' + field.slice(6) : null;
 }
@@ -121,7 +123,8 @@ function applyTemplateUI() {
     const input = $('ap-' + key);
     input.placeholder = (t.defaults.texts[key] || '').replace(/\n/g, ' / ');
   }
-  $('ap-highlight-row').hidden = !t.fields.includes('heroHighlight');
+  document.querySelectorAll('[data-ap-field]').forEach(row => { row.hidden = !t.fields.includes(row.dataset.apField); });
+  $('ap-mapUrl').placeholder = t.defaults.contact.mapUrl;
   $('ap-whatsapp').placeholder = t.defaults.contact.whatsapp ? 'Padrão do modelo' : '(43) 99999-9999';
   $('ap-instagram').placeholder = t.defaults.contact.instagram;
   for (const key of ['primary', 'accent']) {
@@ -183,6 +186,7 @@ function populate(row) {
   for (const key of TEXT_FIELDS) $('ap-' + key).value = config.texts?.[key] || '';
   $('ap-whatsapp').value = formatWhatsApp(config.contact?.whatsapp);
   $('ap-instagram').value = config.contact?.instagram || '';
+  $('ap-mapUrl').value = config.contact?.mapUrl || '';
   state.images = { ...(config.images || {}) };
   releaseFiles();
   for (const radio of document.querySelectorAll('input[name="ap-template"]')) radio.checked = radio.value === t.id;
@@ -370,13 +374,13 @@ function init() {
   form.addEventListener('submit', event => event.preventDefault());
   for (const key of ['primary', 'accent']) bindColor(key);
   for (const key of IMAGE_KEYS) bindImage(key);
-  for (const field of [...TEXT_FIELDS, 'whatsapp', 'instagram']) $('ap-' + field).addEventListener('input', changed);
+  for (const field of [...TEXT_FIELDS, 'whatsapp', 'instagram', 'mapUrl']) $('ap-' + field).addEventListener('input', changed);
   $('ap-reset-colors').addEventListener('click', () => {
     $('ap-primary').value = ''; $('ap-accent').value = '';
     applyTemplateUI(); changed(); loadFrame();
   });
   $('ap-clear').addEventListener('click', () => {
-    for (const id of ['primary', 'accent', ...TEXT_FIELDS, 'whatsapp', 'instagram']) $('ap-' + id).value = '';
+    for (const id of ['primary', 'accent', ...TEXT_FIELDS, 'whatsapp', 'instagram', 'mapUrl']) $('ap-' + id).value = '';
     releaseFiles(); state.images = {};
     applyTemplateUI(); changed(); loadFrame();
     say('Personalização removida do formulário. Salve e publique para aplicar à vitrine.');
