@@ -1,6 +1,6 @@
 # Plano do ambiente de testes: PAINEL 2 (`yqsrieflslnsqxqsinkt`)
 
-**Estado:** somente leitura executada. Nada foi gravado no PAINEL 2 e o projeto de produção (`ipqawywfqydgyabcynbh`) não foi tocado.
+**Estado:** EXECUTADO no PAINEL 2 (autorizado). O projeto de produção (`ipqawywfqydgyabcynbh`) não foi tocado.
 
 ## Verificado (leitura)
 Projeto `ACTIVE_HEALTHY`, Postgres 17.12, região us-east-1 (produção: 17.11, sa-east-1), plano Free. Vazio: 0 objetos em `public`, sem schema `private`, 0 usuários, 0 buckets, 0 políticas de Storage, 0 migrações, sem avisos de segurança. Privilégios padrão de `public` idênticos aos da produção. Pré-checagem `tests/supabase-test-project/00-preflight-readonly.sql`: 7 de 7 itens `OK`.
@@ -28,3 +28,19 @@ O proxy desta sessão recusa `yqsrieflslnsqxqsinkt.supabase.co` (403). Sem liber
 
 ## O que já foi validado localmente (Docker) e o que não
 Validado: esquema-base gerado, SQL dos usuários (login real), Auth, Storage e isolamento por loja. **Não validado** (precisa do PostgREST no PAINEL 2): todo o bloco REST de `api-tests.cjs` (sintaxe verificada; lógica ainda não executada).
+
+
+## Resultado da execução no PAINEL 2 (2026-11-16)
+- Aplicados: `papeliza_base_schema` e `storefront_appearance` (via `apply_migration`); 3 usuários fictícios criados só com **hash** bcrypt (senhas em texto ficam em arquivo local 0600, fora do repositório).
+- **Fingerprint antes x depois da migração: idêntico** (11 itens). Depois do rollback hospedado e da reaplicação: idêntico nos itens preservados.
+- **Suíte `api-tests.cjs`: 65 de 65** (Auth, REST/PostgREST, Storage, isolamento entre lojas, regressão do catálogo).
+- Rollback hospedado: removeu só 3 tabelas e 3 funções de aparência; REST passou a responder `PGRST205`/`PGRST202` (o painel trata como "recurso ainda não ativado") e o catálogo seguiu respondendo.
+- Advisors: apenas `authorized_store_ids` (já existe na produção), `publish_appearance` (intencional) e senhas vazadas (configuração do Auth).
+
+## Achados
+1. **CDN do Storage:** depois de apagar uma imagem, a URL pública (e até GETs autenticados já lidos) continua servida do cache. O estado real é confirmado por **listagem** (POST), que a suíte usa. Logotipos novos usam caminho com UUID, então não há exibição de imagem antiga.
+2. Node `fetch` não usa proxy por padrão: em ambientes com proxy, rodar com `NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=<bundle>`.
+3. Ao gerar o SQL de usuários, nunca imprimir argumentos de comandos (uma falha chegou a exibir uma senha de teste; ela foi trocada antes de qualquer uso).
+
+## Como repetir
+`SUPABASE_URL=https://yqsrieflslnsqxqsinkt.supabase.co SUPABASE_ANON_KEY=<anon> USERS_FILE=users.json node tests/supabase-test-project/api-tests.cjs` (a suíte recusa a URL de produção). Para repetir, rode antes `90-reset-test-data.sql` (somente PAINEL 2).

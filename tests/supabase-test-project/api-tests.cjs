@@ -135,10 +135,20 @@ const uid = () => crypto.randomUUID();
   check(pub.ok && pub.headers.get('content-type') === 'image/png', 'logotipo é legível sem login (bucket público)');
   if (URL_) { const cors = await fetch(`${STORAGE}/object/public/catalog-images/${logo}`, { headers: { Origin: 'https://papeliza-ai-painel.netlify.app' } }); check(cors.headers.get('access-control-allow-origin') !== null, 'imagem pública responde com CORS para o domínio do painel'); }
   const delOther = await fetch(`${STORAGE}/object/catalog-images/${banner}`, { method: 'DELETE', headers: { apikey: ANON, Authorization: 'Bearer ' + T.outsider } });
-  check((await fetch(`${STORAGE}/object/public/catalog-images/${banner}`)).ok, 'usuário sem vínculo NÃO apaga a imagem (status ' + delOther.status + ')');
+  // Existência: por listagem. GETs por URL (pública ou autenticada) podem ser servidos do cache da CDN depois da exclusão.
+  // Listagem (POST) não passa pelo cache da CDN, ao contrário de qualquer GET por URL.
+  const exists = async (path, token) => {
+    const slash = path.lastIndexOf('/');
+    const res = await fetch(`${STORAGE}/object/list/catalog-images`, { method: 'POST', headers: { apikey: ANON, Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ prefix: path.slice(0, slash), limit: 100 }) });
+    const list = await res.json();
+    return Array.isArray(list) && list.some(o => o.name === path.slice(slash + 1));
+  };
+  check(await exists(banner, T.lapis), 'usuário sem vínculo NÃO apaga a imagem (status ' + delOther.status + ')');
   // limpeza das imagens de teste
   for (const p of [logo, banner]) await fetch(`${STORAGE}/object/catalog-images/${p}`, { method: 'DELETE', headers: { apikey: ANON, Authorization: 'Bearer ' + T.lapis } });
-  check(!(await fetch(`${STORAGE}/object/public/catalog-images/${logo}`)).ok, 'lojista remove a própria imagem');
+  check(!(await exists(logo, T.lapis)), 'lojista remove a própria imagem (confirmado por listagem)');
+  check(!(await exists(banner, T.lapis)), 'lojista remove também o banner de teste');
+  console.log('  nota  a URL pública de uma imagem apagada pode continuar servida pela CDN (cache); por isso logotipos novos usam caminho novo (UUID).');
 
   console.log(`\nResultado: ${passed} ok, ${failures} falha(s)`);
   process.exit(failures ? 1 : 0);
