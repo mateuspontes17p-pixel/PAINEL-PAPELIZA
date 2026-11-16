@@ -74,10 +74,10 @@ def bridge(route):
     out = {k.lower(): v for k, v in rh.items() if k.lower() not in ('content-encoding', 'transfer-encoding', 'content-length', 'connection', 'access-control-allow-origin')}
     route.fulfill(status=status, headers={**out, **CORS(origin)}, body=body)
 
-SLOW_JS = "const f=window.fetch;window.fetch=(...a)=>{const u=String((a[0]&&a[0].url)||a[0]);return /storefront_appearance/.test(u)?new Promise(r=>setTimeout(r,1800)).then(()=>f(...a)):f(...a)}"
-def new_context(browser, mobile=False, slow=False):
+SLOW_JS = "const f=window.fetch;window.fetch=(...a)=>{const u=String((a[0]&&a[0].url)||a[0]);return new RegExp('__RE__').test(u)?new Promise(r=>setTimeout(r,1800)).then(()=>f(...a)):f(...a)}"
+def new_context(browser, mobile=False, slow=False, slow_re='storefront_appearance'):
     ctx = browser.new_context(viewport={'width': 390, 'height': 844} if mobile else {'width': 1360, 'height': 900}, locale='pt-BR')
-    if slow: ctx.add_init_script(SLOW_JS)   # lentidão DENTRO da página (não bloqueia o Playwright)
+    if slow: ctx.add_init_script(SLOW_JS.replace('__RE__', slow_re))   # lentidão DENTRO da página (não bloqueia o Playwright)
     ctx.route(re.compile(r'https?://(?!localhost)[^/]+/.*'), bridge)   # tudo que não é localhost passa pela ponte (fontes e outros: abortados)
     page = ctx.new_page(); errors = []
     page.on('pageerror', lambda e: errors.append(str(e)))
@@ -112,6 +112,41 @@ def main():
         check(not sl_page.evaluate("document.getElementById('ap-form').hasAttribute('aria-busy')"), 'depois de carregar, o formulário é liberado')
         sl_page.fill('#ap-heroEyebrow', 'DIGITADO APÓS CARREGAR'); sl_page.wait_for_timeout(500)
         check(sl_page.input_value('#ap-heroEyebrow') == 'DIGITADO APÓS CARREGAR', 'o que é digitado depois da liberação permanece'); sl_ctx.close()
+
+        # ================= 0b) voltar para a aba: sem "flash" de login com sessão válida =================
+        # Cenário do usuário: ficar na aba Aparência, sair do navegador por um tempo (token vencido) e voltar.
+        print('\n[0b] Retorno à aba, na Aparência e no Catálogo (token vencido, rede lenta, edição não salva)')
+        TRIGGER = "()=>{const fire=w=>{try{w.dispatchEvent(new Event('focus'));w.document.dispatchEvent(new Event('visibilitychange'))}catch(e){}};fire(window);const f=document.getElementById('ap-frame');if(f&&f.contentWindow)fire(f.contentWindow)}"
+        EXPIRE = "()=>{const k=Object.keys(localStorage).find(k=>/-auth-token$/.test(k));const v=JSON.parse(localStorage.getItem(k));v.expires_at=Math.floor(Date.now()/1000)-30;localStorage.setItem(k,JSON.stringify(v))}"
+        OBSV = "()=>{window.__flash=0;window.__gone=0;const lg=document.getElementById('login-screen'),pn=document.getElementById('authenticated-panel');new MutationObserver(()=>{if(!lg.hidden)window.__flash++}).observe(lg,{attributes:true,attributeFilter:['hidden']});new MutationObserver(()=>{if(pn.hidden)window.__gone++}).observe(pn,{attributes:true,attributeFilter:['hidden']})}"
+        def return_to_tab(page, label, in_appearance):
+            samples = []
+            page.evaluate(EXPIRE); page.evaluate(OBSV)   # token vencido: ao voltar, a sessão precisa ser renovada (eventos de Auth em sequência)
+            page.evaluate(TRIGGER)
+            for _ in range(70):   # 7 s: cobre a espera da rede lenta e a renovação do token
+                samples.append(page.evaluate("()=>[document.getElementById('login-screen').hidden,document.getElementById('authenticated-panel').hidden]")); page.wait_for_timeout(100)
+            check(all(lg_hidden and not pn_hidden for lg_hidden, pn_hidden in samples), f'{label}: ao voltar à aba o login NUNCA aparece e o painel não some (70 amostras)', samples[:2])
+            check(page.evaluate("window.__flash") == 0 and page.evaluate("window.__gone") == 0, f'{label}: nenhuma troca de tela registrada pelo observador')
+            check(page.evaluate("document.getElementById('signed-email').textContent") == USERS['lapis']['email'], f'{label}: segue na mesma conta')
+            if in_appearance:
+                check(page.input_value('#ap-heroEyebrow') == 'NÃO SALVO' and state(page) == 'Alterações não salvas', f'{label}: a edição não salva do formulário foi preservada', (page.input_value('#ap-heroEyebrow'), state(page)))
+                check(page.evaluate("document.getElementById('ap-frame').contentWindow.__marker") == 'mesmo-documento', f'{label}: a prévia (iframe) não foi recarregada')
+                check(page.evaluate("location.hash") == '#aparencia', f'{label}: continua na aba Aparência')
+        tctx, tpage, terr = new_context(browser, slow=True, slow_re=r'auth/v1/user|rest/v1/stores'); all_errors += [terr]
+        login(tpage, 'lapis'); tpage.wait_for_selector('#authenticated-panel:not([hidden])', timeout=40000); tpage.wait_for_selector('#rows tr, #rows [data-id], #rows .row', timeout=30000)
+        return_to_tab(tpage, 'Catálogo', False)
+        open_appearance(tpage); tpage.frame_locator('#ap-frame').locator('.product-card').first.wait_for(timeout=30000)
+        tpage.evaluate("()=>{document.getElementById('ap-frame').contentWindow.__marker='mesmo-documento'}")
+        tpage.fill('#ap-heroEyebrow', 'NÃO SALVO'); tpage.wait_for_timeout(600)
+        return_to_tab(tpage, 'Aparência', True)
+        shot(tpage, '00-retorno-a-aba-aparencia-sem-flash')
+        check(tpage.input_value('#ap-heroEyebrow') == 'NÃO SALVO', 'edição ainda presente ao final')
+        # problema REAL: a sessão é encerrada em outra aba -> o painel deve ser escondido, mesmo na Aparência
+        other = tctx.new_page(); other.goto(BASE + '/index.html'); other.wait_for_selector('#authenticated-panel:not([hidden])', timeout=40000); other.click('#logout'); other.wait_for_selector('#login-screen:not([hidden])', timeout=30000)
+        tpage.bring_to_front(); tpage.evaluate(TRIGGER)
+        tpage.wait_for_function("!document.getElementById('login-screen').hidden && document.getElementById('authenticated-panel').hidden", timeout=30000)
+        check(True, 'sessão encerrada em outra aba: o painel é escondido e o login aparece (problema real não é mascarado)')
+        tctx.close()
 
         # ================= 1) Lápis de Cor: login, catálogo, aparência =================
         print('\n[1] Login e seleção de loja (lojista Lápis de Cor)')
@@ -255,7 +290,55 @@ def main():
         check(ppage.evaluate("document.documentElement.scrollWidth<=window.innerWidth+1"), 'painel (catálogo) sem rolagem horizontal no celular')
         shot(ppage, '16-painel-celular-catalogo'); open_appearance(ppage); ppage.wait_for_timeout(800)
         check(ppage.evaluate("document.documentElement.scrollWidth<=window.innerWidth+1"), 'aba Aparência sem rolagem horizontal no celular')
-        shot(ppage, '17-painel-celular-aparencia'); pctx.close(); browser.close()
+        shot(ppage, '17-painel-celular-aparencia'); pctx.close()
+
+        # ================= produtos e categorias =================
+        print('\n[P] Produtos e categorias (Lápis de Cor, dados fictícios "TESTE E2E")')
+        cctx, cpage, cerr = new_context(browser); all_errors += [cerr]
+        login(cpage, 'lapis'); cpage.wait_for_selector('#authenticated-panel:not([hidden])', timeout=20000); cpage.wait_for_selector('#rows tr, #rows [data-id], #rows .row', timeout=20000)
+        run_id = str(int(time.time()))[-6:]; CATC = 'TESTE E2E'; TMP = f'TesteE2E{run_id}'; PROD = f'TESTE E2E Marcador {run_id}'
+        has_cat = lambda n: cpage.evaluate("n=>[...document.querySelectorAll('#category-list input')].some(i=>i.value===n)", n)
+        # o nome fica na PROPRIEDADE value do input (não no atributo): localizar a linha pelo valor atual
+        cat_row = lambda n: cpage.locator('#category-list .category-row').nth(cpage.evaluate("n=>[...document.querySelectorAll('#category-list .category-row')].findIndex(r=>r.querySelector('input').value===n)", n))
+        if not has_cat(CATC):   # categoria fixa onde ficam os produtos de teste (criada uma única vez)
+            cpage.fill('#category-name', CATC); cpage.press('#category-name', 'Enter'); cpage.wait_for_function("n=>[...document.querySelectorAll('#category-list input')].some(i=>i.value===n)", arg=CATC, timeout=20000)
+        cpage.fill('#category-name', TMP); cpage.press('#category-name', 'Enter'); cpage.wait_for_function("n=>[...document.querySelectorAll('#category-list input')].some(i=>i.value===n)", arg=TMP, timeout=20000)
+        check(has_cat(TMP), 'cria categoria nova')
+        cpage.fill('#category-name', TMP.lower()); cpage.press('#category-name', 'Enter'); cpage.wait_for_timeout(800)
+        check(cpage.locator('#category-list input').evaluate_all("(els,n)=>els.filter(e=>e.value.toLowerCase()===n.toLowerCase()).length", TMP) == 1, 'categoria duplicada (maiúsculas/minúsculas) é recusada')
+        cat_row(TMP).locator('input').fill(TMP + 'b'); cat_row(TMP).get_by_role('button', name='Renomear').click(); cpage.wait_for_function("n=>[...document.querySelectorAll('#category-list input')].some(i=>i.value===n)", arg=TMP + 'b', timeout=20000)
+        check(has_cat(TMP + 'b') and not has_cat(TMP), 'renomeia a categoria')
+        cat_row(TMP + 'b').get_by_role('button', name='Excluir').click(); cpage.wait_for_function("n=>![...document.querySelectorAll('#category-list input')].some(i=>i.value===n)", arg=TMP + 'b', timeout=20000)
+        check(not has_cat(TMP + 'b'), 'categoria vazia é excluída')
+        CAT2 = CATC
+        cpage.click('#new'); cpage.wait_for_selector('#editor[open]', timeout=10000)
+        cpage.fill('#name', PROD); cpage.fill('#price', '12,50'); cpage.select_option('#category', label=CAT2); cpage.fill('#detail', 'Produto fictício criado pelo teste de navegador.')
+        cpage.set_input_files('#photo', files=[{'name': 'foto.png', 'mimeType': 'image/png', 'buffer': LOGO}]); cpage.wait_for_timeout(600)
+        cpage.click('#save'); cpage.wait_for_function("!document.getElementById('editor').open", timeout=30000)
+        prow = cpage.locator('#rows tr', has_text=PROD); prow.wait_for(timeout=20000)
+        check('R$ 12,50' in prow.inner_text().replace('\xa0', ' ') and 'Publicado na vitrine' in prow.inner_text(), 'cria produto com preço, categoria e foto (publicado na vitrine)', prow.inner_text()[:90])
+        check(cpage.locator('#rows tr', has_text=PROD).locator('.photo img, .photo [style*="url"]').count() >= 0, 'linha do produto renderiza')
+        vctx, vpage, verr = new_context(browser); all_errors += [verr]
+        def on_storefront(): vpage.goto(BASE + '/vitrine/index.html'); vpage.wait_for_selector('.product-card', timeout=20000); return vpage.inner_text('body')
+        check(PROD in on_storefront(), 'o produto novo aparece na vitrine pública')
+        prow.get_by_role('button', name='Ocultar').click(); cpage.wait_for_function("n=>[...document.querySelectorAll('#rows tr')].some(r=>r.innerText.includes(n)&&r.innerText.includes('Oculto'))", arg=PROD, timeout=20000)
+        check(PROD not in on_storefront(), 'produto oculto some da vitrine pública')
+        cpage.locator('#rows tr', has_text=PROD).get_by_role('button', name='Exibir').click(); cpage.wait_for_function("n=>[...document.querySelectorAll('#rows tr')].some(r=>r.innerText.includes(n)&&r.innerText.includes('Publicado'))", arg=PROD, timeout=20000)
+        check(PROD in on_storefront(), 'produto exibido volta à vitrine pública')
+        cpage.locator('#rows tr', has_text=PROD).get_by_role('button', name='Editar').click(); cpage.wait_for_selector('#editor[open]', timeout=10000)
+        cpage.fill('#price', '15,00'); cpage.click('#save'); cpage.wait_for_function("!document.getElementById('editor').open", timeout=30000)
+        cpage.wait_for_function("n=>[...document.querySelectorAll('#rows tr')].some(r=>r.innerText.includes(n)&&r.innerText.replace(/\u00a0/g,' ').includes('R$ 15,00'))", arg=PROD, timeout=20000)
+        cpage.reload(); cpage.wait_for_selector('#rows tr', timeout=30000)
+        check('R$ 15,00' in cpage.locator('#rows tr', has_text=PROD).inner_text().replace('\xa0', ' '), 'edição de preço persiste após recarregar')
+        check(cat_row(CAT2).get_by_role('button', name='Excluir').is_disabled(), 'categoria em uso não pode ser excluída')
+        cpage.locator('#rows tr', has_text=PROD).get_by_role('button', name='Excluir').click()
+        cpage.wait_for_function("n=>![...document.querySelectorAll('#rows tr')].some(r=>r.innerText.includes(n))", arg=PROD, timeout=20000)
+        check(PROD not in on_storefront(), 'produto excluído (arquivado) some da vitrine e da lista padrão')
+        cpage.check('#show-archived'); arow = cpage.locator('#rows tr', has_text=PROD); arow.wait_for(timeout=15000)
+        check('Excluído' in arow.inner_text(), 'produto excluído aparece em "mostrar arquivados"')
+        shot(cpage, '18-produtos-arquivados'); vctx.close(); cctx.close()
+
+        browser.close()
 
         # ================= auditoria =================
         print('\n[8] Auditoria de rede e erros')
