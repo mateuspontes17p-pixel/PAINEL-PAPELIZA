@@ -48,8 +48,8 @@ Tanto o operador PAPELIZA AI quanto o lojista autorizado poderão editar a ident
 - `python3 tests/e2e/appearance.e2e.py` — Chrome real com Supabase simulado (python3 + playwright + google-chrome).
 
 **Antes de usar de verdade (aprovação necessária)**
-1. Aplicar `database/storefront-appearance.sql` primeiro em uma branch/projeto de teste do Supabase (após backup), rodar `verify-appearance-isolation.sql` e só então no projeto real. As políticas dependem de `public.stores`, `public.authorized_store_ids()` e `private.catalog_touch()`, que não estão neste repositório: confirme-as no projeto real.
-2. Testar o envio de logotipo/banner contra o Storage real (pasta `<store_id>/branding/` no bucket `catalog-images`).
+1. **Já validado em Supabase local** (Docker, Postgres/GoTrue/Storage reais; ver `docs/supabase-local-testing.md`): migração, RLS, isolamento entre lojas, Storage de logotipo/banner. Dependências (`public.stores`, `public.authorized_store_ids()`, `private.catalog_touch()`) conferidas no projeto real em modo leitura. **Falta** aplicar no projeto real (aprovação explícita e backup antes) e validar só o que o local não cobre (camada PostgREST, CDN do bucket, catálogo de 39 produtos).
+2. Envio de logotipo/banner: testado contra o storage-api real local (pasta `<store_id>/branding/`, limite de 1 MB, só JPEG/PNG/WebP, isolamento por loja). Repetir um envio no projeto real após a migração.
 3. Revisar o PR e gerar Deploy Preview antes de qualquer merge; sem a migração, o painel mostra "recurso ainda não ativado" e a prévia funciona.
 
 **Pendências conhecidas (próximas etapas, não incluídas na V1)**

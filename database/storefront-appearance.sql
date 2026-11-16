@@ -172,6 +172,8 @@ end $$;
 
 revoke all on function public.publish_appearance(uuid), public.restore_appearance(uuid, integer) from public, anon;
 grant execute on function public.publish_appearance(uuid), public.restore_appearance(uuid, integer) to authenticated;
+-- No Supabase, funções novas em public recebem EXECUTE para anon/authenticated por padrão: restringir explicitamente.
+revoke all on function public.appearance_config_valid(uuid, jsonb) from public, anon;
 grant execute on function public.appearance_config_valid(uuid, jsonb) to authenticated;
 
 notify pgrst, 'reload schema';
