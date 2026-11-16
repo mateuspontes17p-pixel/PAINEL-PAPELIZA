@@ -30,3 +30,30 @@ Tanto o operador PAPELIZA AI quanto o lojista autorizado poderão editar a ident
 3. Template original continua funcional sem personalização.
 4. Atualizações publicadas são visíveis após recarregar a vitrine.
 5. Rollback possível para configurações anteriores.
+
+---
+
+## Estado da implementação (V1 · branch `feature/visual-editor`)
+
+**Implementado e testado** (testes automatizados; nada foi aplicado no Supabase real nem publicado no Netlify):
+- Aba **Aparência** no painel (`public/aparencia.js`, `index.html`, `painel.css`): modelo, cores, nome, logotipo, banner, textos, WhatsApp e Instagram; prévia ao vivo em iframe (computador/celular); salvar rascunho; publicar em duas etapas; histórico e restauração para o rascunho.
+- Contrato de dados estrito e validação (`public/template-registry.js`), espelhado no banco.
+- Aplicação segura na vitrine (`public/appearance-apply.js` + `catalog-public.js`): só `textContent`, atributos e variáveis CSS. Sem tabela, sem aparência publicada ou com configuração inválida, a vitrine mantém o visual original.
+- Cores dos dois modelos controladas por variáveis CSS (padrão idêntico ao anterior).
+- Migração `database/storefront-appearance.sql` (**NÃO APLICADA**), `storefront-appearance-rollback.sql` e `verify-appearance-isolation.sql`.
+
+**Como testar**
+- `for t in tests/*.cjs; do node $t; done` — unitários (contrato, painel, login, lojas).
+- `bash tests/pg/run.sh` — migração + RLS em um PostgreSQL local descartável (usa esquema simulado em `tests/pg/stub-supabase.sql`; não é o Supabase real).
+- `python3 tests/e2e/appearance.e2e.py` — Chrome real com Supabase simulado (python3 + playwright + google-chrome).
+
+**Antes de usar de verdade (aprovação necessária)**
+1. Aplicar `database/storefront-appearance.sql` primeiro em uma branch/projeto de teste do Supabase (após backup), rodar `verify-appearance-isolation.sql` e só então no projeto real. As políticas dependem de `public.stores`, `public.authorized_store_ids()` e `private.catalog_touch()`, que não estão neste repositório: confirme-as no projeto real.
+2. Testar o envio de logotipo/banner contra o Storage real (pasta `<store_id>/branding/` no bucket `catalog-images`).
+3. Revisar o PR e gerar Deploy Preview antes de qualquer merge; sem a migração, o painel mostra "recurso ainda não ativado" e a prévia funciona.
+
+**Pendências conhecidas (próximas etapas, não incluídas na V1)**
+- Endereço, horários, mapa, faixa de campanha, textos "sobre" e prazos de demonstração continuam fixos no HTML. Por isso um modelo só pode ser publicado pela loja de origem (`storefront_templates.generic = false`). Tornar o conteúdo editável/genérico libera o uso do modelo por outras lojas.
+- Fallback visual quando uma loja usa o modelo de outra sem logotipo/banner próprios.
+- Melhorias de design e responsividade dos modelos além das cores (auditoria visual antes/depois).
+- Limpeza de imagens antigas do Storage (substituir uma imagem não apaga a anterior).
