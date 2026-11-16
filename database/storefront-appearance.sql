@@ -5,8 +5,8 @@
 -- Rollback: database/storefront-appearance-rollback.sql
 begin;
 
--- Catálogo de modelos. Um modelo só pode ser publicado pela loja de origem até ser marcado como genérico
--- (sem endereço, horários e contatos de outra loja no HTML).
+-- Catálogo de modelos. A loja de origem publica sempre; outra loja só publica um modelo genérico
+-- com options.storeMode = true (oculta avisos e dados de demonstração da loja de origem).
 create table public.storefront_templates (
   id text primary key check (id ~ '^[a-z0-9-]{2,40}$'),
   name text not null,
@@ -14,8 +14,8 @@ create table public.storefront_templates (
   generic boolean not null default false
 );
 insert into public.storefront_templates(id, name, native_store_slug, generic) values
-  ('london', 'London', 'london-papelaria', false),
-  ('lapis-de-cor', 'Lápis de Cor', 'lapis-de-cor', false);
+  ('london', 'London', 'london-papelaria', true),
+  ('lapis-de-cor', 'Lápis de Cor', 'lapis-de-cor', true);
 
 -- Mesma validação de public/template-registry.js. O banco é a autoridade: o navegador só ajuda.
 create function public.appearance_config_valid(p_store uuid, cfg jsonb) returns boolean
@@ -23,7 +23,7 @@ language plpgsql immutable set search_path = '' as $$
 declare k text; v jsonb; t text; lim integer;
 begin
   if cfg is null or jsonb_typeof(cfg) <> 'object' then return false; end if;
-  if exists (select 1 from jsonb_object_keys(cfg) x where x not in ('version','colors','texts','contact','images')) then return false; end if;
+  if exists (select 1 from jsonb_object_keys(cfg) x where x not in ('version','colors','texts','contact','images','options')) then return false; end if;
   if cfg ? 'version' and cfg->'version' <> '1'::jsonb then return false; end if;
   if cfg ? 'colors' then
     if jsonb_typeof(cfg->'colors') <> 'object' then return false; end if;
@@ -34,7 +34,7 @@ begin
   if cfg ? 'texts' then
     if jsonb_typeof(cfg->'texts') <> 'object' then return false; end if;
     for k, v in select key, value from jsonb_each(cfg->'texts') loop
-      lim := case k when 'storeName' then 80 when 'heroEyebrow' then 40 when 'heroTitle' then 80 when 'heroHighlight' then 80 when 'heroSubtitle' then 200 when 'aboutText' then 300 when 'address' then 120 when 'hours' then 120 when 'footerTagline' then 80 else null end;
+      lim := case k when 'storeName' then 80 when 'heroEyebrow' then 40 when 'heroTitle' then 80 when 'heroHighlight' then 80 when 'heroSubtitle' then 200 when 'aboutEyebrow' then 40 when 'aboutTitle' then 80 when 'aboutText' then 300 when 'address' then 120 when 'hours' then 120 when 'footerTagline' then 80 else null end;
       if lim is null or jsonb_typeof(v) <> 'string' then return false; end if;
       t := v #>> '{}';
       if length(t) = 0 or length(t) > lim or t ~ '[<>]' or t ~ '[\x01-\x09\x0b-\x1f\x7f]' then return false; end if;
@@ -54,6 +54,12 @@ begin
       elsif k = 'mapUrl' then
         if t !~ '^https://(www\.google\.com/maps[A-Za-z0-9_./?=&%+,@:!*-]{0,250}|maps\.app\.goo\.gl/[A-Za-z0-9]{4,40}|goo\.gl/maps/[A-Za-z0-9]{4,40}|maps\.google\.com/[A-Za-z0-9_./?=&%+,@:!*-]{0,250})$' then return false; end if;
       else return false; end if;
+    end loop;
+  end if;
+  if cfg ? 'options' then
+    if jsonb_typeof(cfg->'options') <> 'object' then return false; end if;
+    for k, v in select key, value from jsonb_each(cfg->'options') loop
+      if k <> 'storeMode' or v <> 'true'::jsonb then return false; end if;
     end loop;
   end if;
   if cfg ? 'images' then
@@ -133,9 +139,11 @@ begin
     select 1 from public.storefront_appearance a
     join public.storefront_templates t on t.id = a.draft_template_id
     join public.stores s on s.id = a.store_id
-    where a.store_id = p_store and (t.generic or t.native_store_slug = s.slug)
+    where a.store_id = p_store
+      and (t.native_store_slug = s.slug
+           or (t.generic and a.draft #> '{options,storeMode}' = 'true'::jsonb and coalesce(a.draft #>> '{contact,whatsapp}', '') <> ''))
   ) then
-    raise exception 'Este modelo ainda não pode ser publicado para esta loja.' using errcode = '42501';
+    raise exception 'Para publicar o modelo de outra loja, ative o modo loja e informe o WhatsApp da loja.' using errcode = '42501';
   end if;
   update public.storefront_appearance
      set published = draft, published_template_id = draft_template_id,

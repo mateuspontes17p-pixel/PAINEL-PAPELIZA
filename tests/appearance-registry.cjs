@@ -109,5 +109,25 @@ const fs = require('node:fs'), assert = require('node:assert/strict');
   for (const bad of ['http://maps.app.goo.gl/abcd', 'https://evil.example/maps', 'javascript:alert(1)', 'https://www.google.com.evil.example/maps', 'https://maps.app.goo.gl.evil.example/abcd'])
     assert.throws(() => val({ contact: { mapUrl: bad } }), /Google Maps/, bad);
   assert.equal(val({ contact: { mapUrl: 'https://maps.app.goo.gl/AbC123xy' } }).contact.mapUrl, 'https://maps.app.goo.gl/AbC123xy');
+  // --- modo loja: contrato, gate, ganchos e guardas
+  assert.deepEqual(val({ options: { storeMode: true } }).options, { storeMode: true });
+  assert.equal(val({ options: { storeMode: false } }).options, undefined);
+  assert.throws(() => val({ options: { storeMode: 'sim' } })); assert.throws(() => val({ options: { x: true } })); assert.throws(() => val({ options: [] }));
+  const sm = { options: { storeMode: true }, contact: { whatsapp: '5543999999999' } };
+  assert.ok(R.canPublishTemplate('loja-nova', 'london', sm) && R.canPublishTemplate('loja-nova', 'lapis-de-cor', sm));
+  assert.ok(!R.canPublishTemplate('loja-nova', 'london', { options: { storeMode: true } }), 'modo loja sem WhatsApp não publica');
+  assert.ok(!R.canPublishTemplate('loja-nova', 'london', { options: { storeMode: false } }) && !R.canPublishTemplate('loja-nova', 'london', {}) && !R.canPublishTemplate('loja-nova', 'london'));
+  assert.ok(!R.canPublishTemplate('loja-nova', 'inexistente', sm));
+  for (const t of R.TEMPLATES) {
+    assert.equal(t.generic, true);
+    for (const hook of ['data-ap="aboutEyebrow"', 'data-ap="aboutTitle"']) assert.equal(count(html[t.id], hook), 1, t.id + ' sem ' + hook);
+    for (const key of ['aboutEyebrow', 'aboutTitle']) {
+      const m = html[t.id].match(new RegExp('data-ap="' + key + '"[^>]*>([^]*?)</(p|h2)>'));
+      assert.equal(m[1].replace(/<br>/g, ' ').replace(/<[^>]+>/g, ''), t.defaults.texts[key], t.id + ': padrão de ' + key + ' difere do HTML');
+    }
+    assert.ok(count(html[t.id], 'data-demo') >= 5, t.id + ': avisos de demonstração sem data-demo');
+    assert.ok(/id="activation-dialog"[^>]*data-demo/.test(html[t.id]) && /id="campanha"[^>]*data-demo/.test(html[t.id]), t.id + ': convite/prazo sem data-demo');
+  }
+  for (const f of ['public/london/campanha.js', 'public/vitrine/campanha.js']) assert.ok(/function show\(\)\{if\(document\.documentElement\.hasAttribute\('data-store-mode'\)\)return;/.test(fs.readFileSync(f, 'utf8')), f + ': convite de ativação não respeita o modo loja');
   console.log('PASS: contrato estrito (cores, textos, contato, imagens por loja), WhatsApp, gate de modelo, cores derivadas, padrões = vitrine em runtime, ganchos HTML.');
 })().catch(e => { console.error(e); process.exitCode = 1; });

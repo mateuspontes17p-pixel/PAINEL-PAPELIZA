@@ -53,7 +53,7 @@ Tanto o operador PAPELIZA AI quanto o lojista autorizado poderão editar a ident
 3. Revisar o PR e gerar Deploy Preview antes de qualquer merge; sem a migração, o painel mostra "recurso ainda não ativado" e a prévia funciona.
 
 **Pendências conhecidas (próximas etapas, não incluídas na V1)**
-- **Já editáveis (texto "sobre", endereço, horários [Lápis de Cor], frase do rodapé e link do Google Maps)**, nos dois modelos. Continuam fixos no HTML: faixa de campanha, avisos e prazo de demonstração, textos de "como pedir", faixa de presentes e rótulos das seções. Por isso um modelo ainda só pode ser publicado pela loja de origem (`storefront_templates.generic = false`). Só marcar como genérico depois de tornar esses trechos editáveis ou ocultáveis.
-- Fallback visual quando uma loja usa o modelo de outra sem logotipo/banner próprios.
+- **Modo loja** (`options.storeMode`): oculta avisos, prazo, convite de ativação e dados da loja de origem (marcados com `data-demo` nas vitrines). Textos de origem sem valor próprio (chamada, endereço, horários, "sobre", rodapé) ficam ocultos; Instagram, mapa e WhatsApp da origem nunca aparecem. Sem logotipo, mostra o nome da loja; sem banner, usa um fundo claro com as cores da loja. Os modelos são `generic = true`: outra loja publica um modelo só em modo loja **e com WhatsApp próprio** (regra repetida no banco, em `publish_appearance`). A loja de origem publica como antes.
+- **Ainda fixos no HTML** (não editáveis): rótulos das seções, textos de "como pedir", faixa de presentes, `aria-label`s e textos de acessibilidade que citam a loja de origem. Conferir antes de usar em outra loja real.
 - Melhorias de design e responsividade dos modelos além das cores (auditoria visual antes/depois).
 - Limpeza de imagens antigas do Storage (substituir uma imagem não apaga a anterior).

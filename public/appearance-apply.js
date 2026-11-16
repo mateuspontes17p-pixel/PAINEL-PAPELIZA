@@ -33,9 +33,27 @@ function replaceChildren(el, nodes) {
   track(() => el.replaceChildren(...before));
 }
 
+// Modo loja: oculta avisos e dados de demonstração da loja de origem. Regra estática, criada aqui e
+// removida em resetAppearance; o convite de ativação também é bloqueado em campanha.js.
+const STORE_MODE_CSS = '[data-store-mode] [data-demo],[data-store-mode] [hidden]{display:none!important}' +
+  '.ap-brand-fallback{display:inline-flex;align-items:center;font-weight:800;line-height:1.1;color:var(--green,#222);max-width:14em;overflow-wrap:anywhere}' +
+  // Fundo claro com um toque das cores da loja: os títulos dos modelos são escuros e ficam legíveis sobre ele.
+  '.ap-banner-fallback{background:#f1f5f9!important;background:linear-gradient(135deg,color-mix(in srgb,var(--green,#555) 12%,#fff),color-mix(in srgb,var(--red,#999) 16%,#fff))!important;min-height:clamp(180px,32vw,340px)}' +
+  '.ap-banner-fallback>img[data-ap="banner"]{display:none!important}';
+
+function insertBefore(el, node) {
+  el.parentNode.insertBefore(node, el);
+  track(() => node.remove());
+}
+function addClass(el, name) {
+  el.classList.add(name);
+  track(() => el.classList.remove(name));
+}
+
 export function resetAppearance(doc = document) {
   while (touched.length) touched.pop()();
   doc.documentElement.removeAttribute('data-appearance');
+  doc.documentElement.removeAttribute('data-store-mode');
 }
 
 // ctx.storeId: obrigatório para aceitar imagens.
@@ -142,6 +160,48 @@ export function applyAppearance(doc, templateId, rawConfig, ctx = {}) {
       if (img.hasAttribute('srcset')) setAttr(img, 'srcset', url);
       if (texts.storeName) setAttr(img, 'alt', kind === 'logo' ? 'Logo ' + texts.storeName : 'Banner ' + texts.storeName);
     });
+  }
+  if (config.options?.storeMode) {
+    root.setAttribute('data-store-mode', '');
+    const style = doc.createElement('style');
+    style.textContent = STORE_MODE_CSS;
+    doc.head.append(style);
+    track(() => style.remove());
+    // Nome exibido: o escolhido no editor ou, na falta dele, o da própria loja (nunca o do modelo).
+    const name = texts.storeName || ctx.storeName || '';
+    if (name) {
+      all('[data-ap-textnode="storeName"]').forEach(el => setFirstTextNode(el, name));
+      setVitrine('name', name);
+      setProp(doc, 'title', name);
+    }
+    // Fallbacks: sem logotipo, mostra o nome da loja em texto; sem banner, um fundo com as cores da loja.
+    // Assim o logotipo e o banner do modelo (que trazem a marca da loja de origem) nunca aparecem em outra loja.
+    if (!resolve('logoPath')) {
+      all('img[data-ap="logo"]').forEach(img => {
+        setAttr(img, 'hidden', '');
+        if (!name || img.hasAttribute('data-ap-name-beside')) return;
+        const label = doc.createElement('span');
+        label.className = 'ap-brand-fallback';
+        label.textContent = name;
+        insertBefore(img, label);
+      });
+    }
+    // Textos que são da loja de origem e não foram preenchidos: ocultos, nunca exibidos como se fossem desta loja.
+    for (const key of template.originTexts || []) {
+      if (texts[key]) continue;
+      all('[data-ap="' + key + '"],[data-ap-lines="' + key + '"]').forEach(el => setAttr(el, 'hidden', ''));
+    }
+    // app.js reaplica estes valores do window.VITRINE (da loja de origem): em modo loja, sem valor próprio, ficam vazios.
+    if (!contact.instagram) setVitrine('instagram', '');
+    if (!contact.whatsapp) { setVitrine('whatsapp', ''); setVitrine('enableOrderWhatsApp', false); }
+    if (!contact.mapUrl) all('[data-ap-href="map"]').forEach(el => setAttr(el, 'hidden', ''));
+    if (!contact.instagram) all('[data-ap-href="instagram"]').forEach(el => setAttr(el, 'hidden', ''));
+    if (!contact.whatsapp) all('[data-ap-href="whatsapp"]').forEach(el => setAttr(el, 'hidden', ''));
+    const description = doc.querySelector('meta[name="description"]');
+    if (description && name) setAttr(description, 'content', name);
+    if (!resolve('bannerPath')) {
+      all('img[data-ap="banner"]').forEach(img => { addClass(img.parentElement, 'ap-banner-fallback'); });
+    }
   }
   root.setAttribute('data-appearance', 'custom');
   return config;

@@ -6,7 +6,7 @@ import { loadAppearance, loadHistory, saveDraft, publish, restore, uploadBrandIm
 
 const $ = id => document.getElementById(id);
 const el = (tag, text, cls) => { const n = document.createElement(tag); if (text !== undefined) n.textContent = text; if (cls) n.className = cls; return n; };
-const TEXT_FIELDS = ['storeName', 'heroEyebrow', 'heroTitle', 'heroHighlight', 'heroSubtitle', 'aboutText', 'address', 'hours', 'footerTagline'];
+const TEXT_FIELDS = ['storeName', 'heroEyebrow', 'heroTitle', 'heroHighlight', 'heroSubtitle', 'aboutEyebrow', 'aboutTitle', 'aboutText', 'address', 'hours', 'footerTagline'];
 const IMAGE_KEYS = ['logoPath', 'bannerPath'];
 const IMAGE_INPUT = { logoPath: 'ap-logo', bannerPath: 'ap-banner' };
 const IMAGE_CLEAR = { logoPath: 'ap-clear-logo', bannerPath: 'ap-clear-banner' };
@@ -50,6 +50,7 @@ function readForm() {
   const mapUrl = $('ap-mapUrl').value.trim();
   if (mapUrl) contact.mapUrl = mapUrl;
   if (Object.keys(contact).length) raw.contact = contact;
+  if ($('ap-storeMode').checked) raw.options = { storeMode: true };
   const images = {};
   for (const key of IMAGE_KEYS) if (state.images[key]) images[key] = state.images[key];
   if (Object.keys(images).length) raw.images = images;
@@ -57,7 +58,7 @@ function readForm() {
 }
 
 function fieldId(field) {
-  const map = { 'colors.primary': 'ap-primary', 'colors.accent': 'ap-accent', 'contact.whatsapp': 'ap-whatsapp', 'contact.instagram': 'ap-instagram', 'contact.mapUrl': 'ap-mapUrl', 'images.logoPath': 'ap-logo', 'images.bannerPath': 'ap-banner' };
+  const map = { 'colors.primary': 'ap-primary', 'colors.accent': 'ap-accent', 'contact.whatsapp': 'ap-whatsapp', 'contact.instagram': 'ap-instagram', 'contact.mapUrl': 'ap-mapUrl', 'options.storeMode': 'ap-storeMode', 'images.logoPath': 'ap-logo', 'images.bannerPath': 'ap-banner' };
   if (map[field]) return map[field];
   return field?.startsWith('texts.') ? 'ap-' + field.slice(6) : null;
 }
@@ -105,14 +106,14 @@ function renderState() {
   chip.textContent = text;
   chip.dataset.tone = !state.available ? 'off' : dirty ? 'warn' : savedPublishedSame() ? 'ok' : 'info';
   const canWrite = state.available && !state.busy;
-  const gate = canPublishTemplate(store().slug, state.templateId);
+  const gate = canPublishTemplate(store().slug, state.templateId, readForm());
   $('ap-save').disabled = !canWrite || !dirty;
   $('ap-discard').disabled = state.busy || !dirty;
   $('ap-publish').disabled = !canWrite || !gate || (!dirty && (!state.row || savedPublishedSame()));
   $('ap-publish').textContent = state.confirmTimer ? 'Confirmar publicação' : 'Publicar na vitrine';
   const note = $('ap-template-note');
   note.hidden = gate;
-  note.textContent = gate ? '' : 'Prévia do layout de outra loja: o modelo ainda traz endereço, horários e contatos da loja original, por isso só pode ser publicado pela loja de origem. Você pode explorar e salvar como rascunho.';
+  note.textContent = gate ? '' : 'Este modelo é de outra loja. Para publicá-lo, ative o "modo loja" (oculta avisos e dados de demonstração) e informe o WhatsApp da sua loja; preencha também endereço, horários, logotipo e banner. Você pode explorar e salvar como rascunho.';
   for (const key of IMAGE_KEYS) $(IMAGE_CLEAR[key]).hidden = !(state.images[key] || state.files[key]);
   document.querySelectorAll('#ap-form [data-needs-write]').forEach(n => { n.disabled = !canWrite; });
 }
@@ -167,7 +168,7 @@ function postPreview() {
   if (!state.ready) return;
   const localImages = {};
   for (const key of IMAGE_KEYS) if (state.urls[key]) localImages[key] = state.urls[key];
-  $('ap-frame').contentWindow?.postMessage({ type: 'papeliza:appearance', config: state.lastValid, localImages }, location.origin);
+  $('ap-frame').contentWindow?.postMessage({ type: 'papeliza:appearance', config: state.lastValid, localImages, storeName: store().name }, location.origin);
 }
 window.addEventListener('message', event => {
   if (event.origin !== location.origin || event.source !== $('ap-frame')?.contentWindow || event.data?.type !== 'papeliza:preview-ready') return;
@@ -187,6 +188,7 @@ function populate(row) {
   $('ap-whatsapp').value = formatWhatsApp(config.contact?.whatsapp);
   $('ap-instagram').value = config.contact?.instagram || '';
   $('ap-mapUrl').value = config.contact?.mapUrl || '';
+  $('ap-storeMode').checked = config.options?.storeMode === true;
   state.images = { ...(config.images || {}) };
   releaseFiles();
   for (const radio of document.querySelectorAll('input[name="ap-template"]')) radio.checked = radio.value === t.id;
@@ -267,7 +269,7 @@ async function saveCurrent() {
 }
 
 async function publishCurrent() {
-  if (!canPublishTemplate(store().slug, state.templateId)) return;
+  if (!canPublishTemplate(store().slug, state.templateId, readForm())) return;
   if (isDirty() && !(await saveCurrent())) return;
   const done = await run(async () => {
     const version = await publish(store().id);
@@ -375,6 +377,7 @@ function init() {
   for (const key of ['primary', 'accent']) bindColor(key);
   for (const key of IMAGE_KEYS) bindImage(key);
   for (const field of [...TEXT_FIELDS, 'whatsapp', 'instagram', 'mapUrl']) $('ap-' + field).addEventListener('input', changed);
+  $('ap-storeMode').addEventListener('change', changed);
   $('ap-reset-colors').addEventListener('click', () => {
     $('ap-primary').value = ''; $('ap-accent').value = '';
     applyTemplateUI(); changed(); loadFrame();

@@ -67,9 +67,17 @@ begin
   begin perform public.publish_appearance(lapis); raise exception 'Publicou modelo de outra loja'; exception when insufficient_privilege then null; end;
   assert (select published_version from public.storefront_appearance where store_id = lapis) = 1, 'Versão mudou apesar da recusa';
 
+  -- modo loja: modelo genérico de outra loja pode ser publicado; opções inválidas são recusadas
+  begin update public.storefront_appearance set draft = '{"version":1,"options":{"storeMode":false}}' where store_id = lapis; raise exception 'storeMode=false aceito'; exception when check_violation then null; end;
+  begin update public.storefront_appearance set draft = '{"version":1,"options":{"x":true}}' where store_id = lapis; raise exception 'Opção desconhecida aceita'; exception when check_violation then null; end;
+  update public.storefront_appearance set draft = '{"version":1,"options":{"storeMode":true}}' where store_id = lapis;
+  begin perform public.publish_appearance(lapis); raise exception 'Modo loja sem WhatsApp publicado'; exception when insufficient_privilege then null; end;
+  update public.storefront_appearance set draft = '{"version":1,"options":{"storeMode":true},"contact":{"whatsapp":"5543999999999"}}' where store_id = lapis;
+  v := public.publish_appearance(lapis); assert v = 2, 'Modo loja deveria permitir publicar o modelo genérico (v2)';
+
   -- nova publicação e restauração (vai para o rascunho, nada vai ao ar)
   update public.storefront_appearance set draft_template_id = 'lapis-de-cor', draft = '{"version":1,"colors":{"primary":"#445566"}}' where store_id = lapis;
-  v := public.publish_appearance(lapis); assert v = 2, 'Segunda publicação deveria ser v2';
+  v := public.publish_appearance(lapis); assert v = 3, 'Terceira publicação deveria ser v3';
   perform public.restore_appearance(lapis, 1);
   assert (select draft #>> '{contact,whatsapp}' from public.storefront_appearance where store_id = lapis) = '5543999999999'
      and (select draft #>> '{colors,primary}' from public.storefront_appearance where store_id = lapis) is null, 'Restauração não trouxe a versão 1';
@@ -84,7 +92,7 @@ declare lapis uuid := current_setting('test.lapis')::uuid;
 begin
   begin delete from public.storefront_appearance_history where store_id = lapis; raise exception 'Histórico apagável'; exception when insufficient_privilege then null; end;
   begin delete from public.storefront_appearance where store_id = lapis; raise exception 'Aparência apagável pelo cliente'; exception when insufficient_privilege then null; end;
-  assert (select count(*) from public.storefront_appearance_history) = 2, 'Histórico deveria ter 2 versões';
+  assert (select count(*) from public.storefront_appearance_history) = 3, 'Histórico deveria ter 3 versões';
 end $$;
 reset role;
 

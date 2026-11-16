@@ -12,7 +12,7 @@ const interval=setInterval(tick,1000);tick();
 (()=>{
 const dialog=document.getElementById('activation-dialog');let task,previousFocus;
 function schedule(delay=60000){clearTimeout(task);task=setTimeout(show,delay);}
-function show(){if(document.hidden||document.querySelector('dialog[open]')){schedule(1000);return;}previousFocus=document.activeElement;dialog.showModal();}
+function show(){if(document.documentElement.hasAttribute('data-store-mode'))return;if(document.hidden||document.querySelector('dialog[open]')){schedule(1000);return;}previousFocus=document.activeElement;dialog.showModal();}
 dialog.addEventListener('close',()=>{previousFocus?.focus();schedule();});
 document.getElementById('close-activation').addEventListener('click',()=>dialog.close());
 document.getElementById('later-activation').addEventListener('click',()=>dialog.close());

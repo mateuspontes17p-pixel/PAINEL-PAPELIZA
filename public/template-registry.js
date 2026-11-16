@@ -11,6 +11,9 @@ export const TEMPLATES = Object.freeze([
     name: 'London',
     description: 'Hero amplo com banner de kit escolar, tom azul e vermelho.',
     nativeStore: 'london-papelaria',
+    generic: true,
+    // Textos cujo valor padrão pertence à loja de origem: em modo loja, sem valor próprio, são ocultados.
+    originTexts: Object.freeze(['heroEyebrow', 'heroSubtitle', 'aboutEyebrow', 'aboutTitle', 'aboutText', 'address', 'footerTagline']),
     path: 'london/index.html',
     // Variáveis CSS que cada cor controla neste modelo.
     cssVars: Object.freeze({ primary: ['--green'], accent: ['--red'] }),
@@ -22,19 +25,23 @@ export const TEMPLATES = Object.freeze([
         heroTitle: 'Novas ideias.',
         heroHighlight: 'Novas descobertas.',
         heroSubtitle: 'Kit escolar demonstrativo',
+        aboutEyebrow: 'LONDON · IGAPÓ, LONDRINA',
+        aboutTitle: 'Da Avenida Inglaterra para a sua tela.',
         aboutText: 'Esta proposta apresenta uma possibilidade de presença digital para a London Papelaria & Presentes Criativos, reunindo uma vitrine de produtos e uma forma simples de montar pedidos.',
         address: 'Av. Inglaterra, 639 · Loja 02\nIgapó · Londrina, PR',
         footerTagline: 'Papelaria & Presentes Criativos · Londrina, PR'
       },
       contact: { whatsapp: '5543996654884', instagram: 'https://www.instagram.com/londonpapelariaepresentes/', mapUrl: 'https://www.google.com/maps/search/?api=1&query=Avenida%20Inglaterra%20639%20Londrina%20PR' }
     }),
-    fields: Object.freeze(['storeName', 'heroEyebrow', 'heroTitle', 'heroHighlight', 'heroSubtitle', 'aboutText', 'address', 'footerTagline'])
+    fields: Object.freeze(['storeName', 'heroEyebrow', 'heroTitle', 'heroHighlight', 'heroSubtitle', 'aboutEyebrow', 'aboutTitle', 'aboutText', 'address', 'footerTagline'])
   }),
   Object.freeze({
     id: 'lapis-de-cor',
     name: 'Lápis de Cor',
     description: 'Cabeçalho com busca, categorias ilustradas, tom roxo e terracota.',
     nativeStore: 'lapis-de-cor',
+    generic: true,
+    originTexts: Object.freeze(['heroEyebrow', 'aboutEyebrow', 'aboutTitle', 'aboutText', 'address', 'hours', 'footerTagline']),
     path: 'vitrine/index.html',
     cssVars: Object.freeze({ primary: ['--green'], accent: ['--red', '--red-light'] }),
     defaults: Object.freeze({
@@ -44,6 +51,8 @@ export const TEMPLATES = Object.freeze([
         heroEyebrow: 'LÁPIS DE COR PAPELARIA',
         heroTitle: 'Material escolar\ne papelaria.',
         heroSubtitle: 'Cadernos, canetas e acessórios para os estudos e o trabalho. Veja os produtos e monte seu pedido pelo WhatsApp.',
+        aboutEyebrow: 'LÁPIS DE COR · LONDRINA',
+        aboutTitle: 'Visite a Lápis de Cor',
         aboutText: 'Confira o endereço e os horários de atendimento.',
         address: 'Av. Higienópolis, 1387 — Boa Vista\nLondrina/PR',
         hours: 'Segunda a sexta · 9h às 18h\nSábado · 9h às 13h',
@@ -51,7 +60,7 @@ export const TEMPLATES = Object.freeze([
       },
       contact: { whatsapp: '554399953336', instagram: 'https://www.instagram.com/lapisdecorpapelaria/', mapUrl: 'https://maps.app.goo.gl/SE1D8WGk5qQjX8FF6' }
     }),
-    fields: Object.freeze(['storeName', 'heroEyebrow', 'heroTitle', 'heroSubtitle', 'aboutText', 'address', 'hours', 'footerTagline'])
+    fields: Object.freeze(['storeName', 'heroEyebrow', 'heroTitle', 'heroSubtitle', 'aboutEyebrow', 'aboutTitle', 'aboutText', 'address', 'hours', 'footerTagline'])
   })
 ]);
 
@@ -59,19 +68,22 @@ export function findTemplate(id) {
   return TEMPLATES.find(template => template.id === id) || null;
 }
 
-// O modelo de outra loja carrega endereço, horários e contatos próprios no HTML.
-// Enquanto esse conteúdo não for genérico, só a loja de origem pode PUBLICAR o modelo.
-// A prévia de qualquer modelo continua liberada.
-export function canPublishTemplate(storeSlug, templateId) {
+// A loja de origem publica o modelo como sempre. Outra loja só publica um modelo genérico em "modo loja"
+// (options.storeMode) e com WhatsApp próprio: o modo loja oculta avisos e dados da loja de origem e ativa
+// os fallbacks de logotipo e banner. A prévia de qualquer modelo continua liberada. O banco aplica a mesma regra.
+export function canPublishTemplate(storeSlug, templateId, config = {}) {
   const template = findTemplate(templateId);
-  return !!template && template.nativeStore === storeSlug;
+  if (!template) return false;
+  if (template.nativeStore === storeSlug) return true;
+  // O número da loja é obrigatório: sem ele os pedidos iriam para o WhatsApp da loja de origem.
+  return template.generic === true && config?.options?.storeMode === true && !!config?.contact?.whatsapp;
 }
 
-export const TEXT_LIMITS = Object.freeze({ storeName: 80, heroEyebrow: 40, heroTitle: 80, heroHighlight: 80, heroSubtitle: 200, aboutText: 300, address: 120, hours: 120, footerTagline: 80 });
+export const TEXT_LIMITS = Object.freeze({ storeName: 80, heroEyebrow: 40, heroTitle: 80, heroHighlight: 80, heroSubtitle: 200, aboutEyebrow: 40, aboutTitle: 80, aboutText: 300, address: 120, hours: 120, footerTagline: 80 });
 export const TEXT_LABELS = Object.freeze({
   storeName: 'Nome da loja', heroEyebrow: 'Chamada acima do título', heroTitle: 'Título principal',
   heroHighlight: 'Segunda linha em destaque', heroSubtitle: 'Subtítulo',
-  aboutText: 'Texto "sobre a loja"', address: 'Endereço (até duas linhas)', hours: 'Horários (até duas linhas)', footerTagline: 'Frase do rodapé'
+  aboutEyebrow: 'Chamada da seção "sobre"', aboutTitle: 'Título da seção "sobre"', aboutText: 'Texto "sobre a loja"', address: 'Endereço (até duas linhas)', hours: 'Horários (até duas linhas)', footerTagline: 'Frase do rodapé'
 });
 const HEX = /^#[0-9a-f]{6}$/i;
 const MULTILINE = Object.freeze(['heroTitle', 'address', 'hours']);
@@ -118,7 +130,7 @@ export function emptyAppearance() {
 // storeId é obrigatório para aceitar caminhos de imagem (cada loja só referencia a própria pasta).
 export function validateAppearance(value, { storeId } = {}) {
   if (!isObject(value)) fail('config', 'Configuração inválida.');
-  exactKeys(value, ['version', 'colors', 'texts', 'contact', 'images'], 'config');
+  exactKeys(value, ['version', 'colors', 'texts', 'contact', 'images', 'options'], 'config');
   if (value.version !== undefined && value.version !== APPEARANCE_VERSION) fail('version', 'Versão de configuração não suportada.');
   const out = emptyAppearance();
 
@@ -188,6 +200,14 @@ export function validateAppearance(value, { storeId } = {}) {
       images[key] = path;
     }
     if (Object.keys(images).length) out.images = images;
+  }
+  if (value.options !== undefined) {
+    if (!isObject(value.options)) fail('options', 'Opções inválidas.');
+    exactKeys(value.options, ['storeMode'], 'options');
+    if (value.options.storeMode !== undefined && value.options.storeMode !== null) {
+      if (typeof value.options.storeMode !== 'boolean') fail('options.storeMode', 'Opção inválida.');
+      if (value.options.storeMode) out.options = { storeMode: true };
+    }
   }
   return out;
 }
