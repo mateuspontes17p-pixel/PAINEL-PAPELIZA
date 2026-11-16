@@ -115,7 +115,8 @@ grant select (store_id, published_template_id, published, published_version, pub
 grant select on public.storefront_appearance to authenticated;
 grant insert (store_id, draft_template_id, draft) on public.storefront_appearance to authenticated;
 grant update (draft_template_id, draft) on public.storefront_appearance to authenticated;
-grant select, insert on public.storefront_appearance_history to authenticated;
+-- Histórico: leitura apenas. Só publish_appearance (SECURITY DEFINER) grava, então administradores não fabricam versões.
+grant select on public.storefront_appearance_history to authenticated;
 
 create policy template_public_read on public.storefront_templates for select to anon, authenticated using (true);
 create policy appearance_public_read on public.storefront_appearance for select to anon using (published_template_id is not null);
@@ -124,7 +125,6 @@ create policy appearance_admin_insert on public.storefront_appearance for insert
 create policy appearance_admin_update on public.storefront_appearance for update to authenticated
   using (store_id in (select public.authorized_store_ids())) with check (store_id in (select public.authorized_store_ids()));
 create policy appearance_history_admin_read on public.storefront_appearance_history for select to authenticated using (store_id in (select public.authorized_store_ids()));
-create policy appearance_history_admin_insert on public.storefront_appearance_history for insert to authenticated with check (store_id in (select public.authorized_store_ids()));
 
 -- Publica o rascunho: copia para a versão pública, incrementa a versão e registra o histórico, de forma atômica.
 -- SECURITY DEFINER para poder gravar as colunas publicadas; a autorização é verificada aqui dentro.

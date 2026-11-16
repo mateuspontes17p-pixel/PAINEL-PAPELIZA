@@ -85,6 +85,7 @@ begin
   begin perform public.restore_appearance(london, 1); raise exception 'Restaurou outra loja'; exception when sqlstate 'P0002' then null; end;
 
   -- histórico imutável e isolado
+  begin insert into public.storefront_appearance_history(store_id, version, template_id, config) values (lapis, 99, 'lapis-de-cor', '{"version":1}'); raise exception 'Administrador fabricou versão no histórico'; exception when insufficient_privilege then null; end;
   begin update public.storefront_appearance_history set version = 9 where store_id = lapis; raise exception 'Histórico alterável'; exception when insufficient_privilege then null; end;
 end $$;
 do $$
