@@ -22,7 +22,9 @@ SHOTS = os.environ.get('SHOTS', '/tmp/papeliza-shots'); os.makedirs(SHOTS, exist
 if PROD_REF in URL or PROD_REF in KEY: sys.exit('RECUSADO: URL/chave do projeto de produção.')
 HOST = urlparse(URL).hostname
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-PORT = 8780; BASE = f'http://localhost:{PORT}'
+import socket
+_sock = socket.socket(); _sock.bind(('127.0.0.1', 0)); PORT = _sock.getsockname()[1]; _sock.close()   # porta livre: nunca reutiliza um servidor antigo
+BASE = f'http://localhost:{PORT}'
 LAPIS, LONDON = '11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222'
 
 # ---------- cópia isolada de public/ apontando para o projeto de testes ----------
@@ -72,8 +74,10 @@ def bridge(route):
     out = {k.lower(): v for k, v in rh.items() if k.lower() not in ('content-encoding', 'transfer-encoding', 'content-length', 'connection', 'access-control-allow-origin')}
     route.fulfill(status=status, headers={**out, **CORS(origin)}, body=body)
 
-def new_context(browser, mobile=False):
+SLOW_JS = "const f=window.fetch;window.fetch=(...a)=>{const u=String((a[0]&&a[0].url)||a[0]);return /storefront_appearance/.test(u)?new Promise(r=>setTimeout(r,1800)).then(()=>f(...a)):f(...a)}"
+def new_context(browser, mobile=False, slow=False):
     ctx = browser.new_context(viewport={'width': 390, 'height': 844} if mobile else {'width': 1360, 'height': 900}, locale='pt-BR')
+    if slow: ctx.add_init_script(SLOW_JS)   # lentidão DENTRO da página (não bloqueia o Playwright)
     ctx.route(re.compile(r'https?://(?!localhost)[^/]+/.*'), bridge)   # tudo que não é localhost passa pela ponte (fontes e outros: abortados)
     page = ctx.new_page(); errors = []
     page.on('pageerror', lambda e: errors.append(str(e)))
@@ -86,7 +90,7 @@ def login(page, who):
     page.fill('#auth-email', USERS[who]['email']); page.fill('#auth-password', USERS[who]['password']); page.click('#sign-in')
 def open_appearance(page):
     page.click('nav a[data-view=appearance]'); page.wait_for_selector('#ap-templates input', timeout=15000)
-    page.wait_for_function("document.getElementById('ap-state').textContent.trim().length>0", timeout=10000)
+    page.wait_for_function("document.getElementById('ap-state').textContent.trim().length>0 && !document.getElementById('ap-form').hasAttribute('inert')", timeout=20000)
 def state(page): return page.inner_text('#ap-state').strip()
 def frame_var(page, name): return page.evaluate("n=>document.getElementById('ap-frame').contentDocument.documentElement.style.getPropertyValue(n).trim()", name)
 def fdoc(page, js): return page.evaluate(f"document.getElementById('ap-frame').contentDocument.{js}")
@@ -96,6 +100,18 @@ def main():
     with sync_playwright() as p:
         browser = p.chromium.launch(executable_path='/usr/bin/google-chrome', args=['--no-sandbox'])
         all_errors = []
+
+        # ================= 0) carregamento lento: o formulário não pode perder o que a pessoa digita =================
+        # (o painel carrega a aparência no login; com a rede lenta, a aba pode ser aberta antes dos dados chegarem)
+        print('\n[0] Carregamento lento da aparência (não escreve nada)')
+        sl_ctx, sl_page, sl_err = new_context(browser, slow=True); all_errors += [sl_err]
+        login(sl_page, 'london'); sl_page.wait_for_selector('#authenticated-panel:not([hidden])', timeout=20000)
+        sl_page.click('nav a[data-view=appearance]'); sl_page.wait_for_selector('#ap-templates input', timeout=15000)
+        check(sl_page.evaluate("document.getElementById('ap-form').hasAttribute('inert') && document.getElementById('ap-form').getAttribute('aria-busy')==='true'"), 'enquanto a aparência carrega, o formulário fica bloqueado (aria-busy)')
+        sl_page.wait_for_function("!document.getElementById('ap-form').hasAttribute('inert')", timeout=25000)
+        check(not sl_page.evaluate("document.getElementById('ap-form').hasAttribute('aria-busy')"), 'depois de carregar, o formulário é liberado')
+        sl_page.fill('#ap-heroEyebrow', 'DIGITADO APÓS CARREGAR'); sl_page.wait_for_timeout(500)
+        check(sl_page.input_value('#ap-heroEyebrow') == 'DIGITADO APÓS CARREGAR', 'o que é digitado depois da liberação permanece'); sl_ctx.close()
 
         # ================= 1) Lápis de Cor: login, catálogo, aparência =================
         print('\n[1] Login e seleção de loja (lojista Lápis de Cor)')
@@ -121,24 +137,27 @@ def main():
         page.fill('#ap-aboutText', 'Papelaria de bairro com atendimento caprichado.'); page.fill('#ap-address', 'Rua das Flores, 100\nCambé, PR'); page.fill('#ap-hours', 'Seg a sex · 8h às 18h\nSáb · 8h às 12h')
         page.fill('#ap-footerTagline', 'Tudo para o seu estudo'); page.fill('#ap-mapUrl', 'https://maps.app.goo.gl/AbC123xy')
         page.fill('#ap-whatsapp', '(43) 99111-2222'); page.fill('#ap-instagram', 'https://www.instagram.com/papelaria.girassol/')
-        page.wait_for_function("document.getElementById('ap-frame').contentDocument.documentElement.style.getPropertyValue('--green')==='#1e6e46'", timeout=8000)
+        # a prévia reaplica com atraso (debounce): esperar pelo ÚLTIMO campo digitado, não só pelo primeiro
+        page.wait_for_function("(()=>{const d=document.getElementById('ap-frame').contentDocument;const a=d.querySelector('[data-ap-href=whatsapp]');return d.documentElement.style.getPropertyValue('--green')==='#1e6e46'&&a&&a.href==='https://wa.me/5543991112222'})()", timeout=10000)
         check(frame_var(page, '--green') == '#1e6e46' and frame_var(page, '--red') == '#d97706', 'prévia ao vivo: cores principal e de destaque')
         check(fdoc(page, "querySelector('#studio-title').innerText").replace('\n', ' ').startswith('Volta às aulas'), 'prévia ao vivo: título em duas linhas')
         check(fdoc(page, "querySelector('[data-ap-lines=address]').innerHTML") == 'Rua das Flores, 100<br>Cambé, PR', 'prévia: endereço em duas linhas sem HTML injetado')
         check(fdoc(page, "querySelector('[data-ap-lines=hours]').innerHTML") == 'Seg a sex · 8h às 18h<br>Sáb · 8h às 12h', 'prévia: horários em duas linhas')
         check(fdoc(page, "querySelector('[data-ap-href=map]').href") == 'https://maps.app.goo.gl/AbC123xy', 'prévia: link do mapa')
-        check(fdoc(page, "querySelector('[data-ap-href=whatsapp]').href") == 'https://wa.me/5543911112222', 'prévia: WhatsApp normalizado')
+        check(fdoc(page, "querySelector('[data-ap-href=whatsapp]').href") == 'https://wa.me/5543991112222', 'prévia: WhatsApp normalizado')
         page.set_input_files('#ap-logo', files=[{'name': 'logo.png', 'mimeType': 'image/png', 'buffer': LOGO}])
         page.set_input_files('#ap-banner', files=[{'name': 'banner.png', 'mimeType': 'image/png', 'buffer': BANNER}])
         page.wait_for_function("document.getElementById('ap-frame').contentDocument.querySelector('img[data-ap=logo]').src.startsWith('blob:')", timeout=8000)
         check(fdoc(page, "querySelector('img[data-ap=banner]').src").startswith('blob:'), 'prévia usa logotipo e banner escolhidos antes de enviar (blob local)')
         shot(page, '04-aparencia-editando-desktop')
+        desktop_w = page.evaluate("document.getElementById('ap-frame').getBoundingClientRect().width")
         page.click('#ap-mobile'); page.wait_for_timeout(500)
         width = page.evaluate("document.getElementById('ap-frame').getBoundingClientRect().width")
         check(page.get_attribute('#ap-mobile', 'aria-pressed') == 'true' and 300 <= width <= 460, 'modo celular reduz a prévia', width)
         check(fdoc(page, "documentElement.scrollWidth") <= width + 2, 'prévia no celular sem rolagem horizontal')
         shot(page, '05-aparencia-previa-celular'); page.click('#ap-desktop'); page.wait_for_timeout(300)
-        check(page.evaluate("document.getElementById('ap-frame').getBoundingClientRect().width") > 700, 'modo computador restaura a largura da prévia')
+        back_w = page.evaluate("document.getElementById('ap-frame').getBoundingClientRect().width")
+        check(abs(back_w - desktop_w) < 2 and back_w > width + 100, 'modo computador restaura a largura da prévia', f'{back_w} vs {desktop_w}, celular {width}')
 
         print('\n[3] Rascunho, publicação e restauração (PAINEL 2)')
         page.click('#ap-save'); wait_state(page, 'Rascunho salvo · não publicado')

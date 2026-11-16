@@ -44,3 +44,10 @@ Validado: esquema-base gerado, SQL dos usuários (login real), Auth, Storage e i
 
 ## Como repetir
 `SUPABASE_URL=https://yqsrieflslnsqxqsinkt.supabase.co SUPABASE_ANON_KEY=<anon> USERS_FILE=users.json node tests/supabase-test-project/api-tests.cjs` (a suíte recusa a URL de produção). Para repetir, rode antes `90-reset-test-data.sql` (somente PAINEL 2).
+
+## Teste de navegador real contra o PAINEL 2 (53 de 53)
+`tests/e2e/painel2.e2e.py`: Chrome real, painel e vitrines servidos de uma **cópia temporária** de `public/` apontada para o PAINEL 2; só o host de testes é encaminhado e qualquer chamada à produção é abortada e reprovaria o teste (0 ocorridas). Cobre login, seletor de loja, catálogo, edição de cores/textos/endereço/horários/mapa/WhatsApp, envio de logotipo e banner ao Storage, prévia em computador e celular, rascunho, publicar, histórico, restaurar, modelo de outra loja (gate), isolamento London x Lápis de Cor, usuário sem vínculo e painel no celular. Capturas em `docs/screenshots/painel2/`.
+
+**Defeito corrigido:** o formulário de Aparência ficava editável enquanto os dados carregavam e `populate()` apagava o que a pessoa digitasse nesse intervalo (reproduzido no código antigo). Agora o formulário fica bloqueado (`inert` + `aria-busy`) até carregar.
+
+**Pré-visualização para teste manual:** `node scripts/build-test-preview.mjs <pasta>` gera a cópia apontada para o PAINEL 2, com faixa "AMBIENTE DE TESTES", e recusa a URL de produção e qualquer chave que não seja pública.

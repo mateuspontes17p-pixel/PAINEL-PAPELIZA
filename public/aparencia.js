@@ -366,7 +366,12 @@ async function start() {
   mirror.onchange = () => { original.value = mirror.value; original.onchange?.(); };
   buildTemplates();
   say('Carregando aparência…');
+  // Bloqueia o formulário até os dados chegarem: reload() preenche os campos com o estado do banco e
+  // apagaria silenciosamente o que a pessoa digitasse nesse intervalo.
+  const form = $('ap-form');
+  form.setAttribute('inert', ''); form.setAttribute('aria-busy', 'true');
   try { await reload(); say(''); } catch (error) { populate(null); loadFrame(); say(explain(error)); }
+  finally { form.removeAttribute('inert'); form.removeAttribute('aria-busy'); }
   renderState();
   if (!state.available) say(explain({ code: UNAVAILABLE }));
 }
