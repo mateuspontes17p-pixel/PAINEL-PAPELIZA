@@ -13,7 +13,7 @@ const interval=setInterval(tick,1000);tick();
 if(!p.popupEnabled||!valid)return;
 let task,lastFocus;
 function schedule(ms){clearTimeout(task);task=setTimeout(show,ms);}
-function show(){if(document.hidden||document.querySelector('dialog[open]')){schedule(1000);return;}lastFocus=document.activeElement;dialog.showModal();}
+function show(){if(document.documentElement.hasAttribute('data-store-mode'))return;if(document.hidden||document.querySelector('dialog[open]')){schedule(1000);return;}lastFocus=document.activeElement;dialog.showModal();}
 dialog.addEventListener('close',()=>{lastFocus?.focus();if(p.popupRepeatSeconds>0)schedule(p.popupRepeatSeconds*1000);});
 $('close-activation').addEventListener('click',()=>dialog.close());$('later-activation').addEventListener('click',()=>dialog.close());
 dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close();}});
